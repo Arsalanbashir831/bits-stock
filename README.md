@@ -1,23 +1,44 @@
 # Bits Stock
 
-Daily stock sheet manager built with Next.js, Prisma ORM, and SQLite.
+Daily stock sheet manager built with Next.js, Prisma ORM, and PostgreSQL.
 
 ## Requirements
 
 - Node.js 20.9 or newer
-- npm
+- npm or pnpm
+- A PostgreSQL database (the Vercel Marketplace Prisma Postgres or Neon integration works)
 
 ## Setup
 
 ```bash
 npm install
 cp .env.example .env
-npm run db:migrate -- --name init
+npm run db:deploy
 npm run db:seed
 npm run dev
 ```
 
-The local SQLite file is created at `prisma/dev.db`. Prisma Client is generated into `lib/generated/prisma` during install. The starter catalog follows the item names in the provided BITS stock report. Check the database connection at [http://localhost:3000/api/health](http://localhost:3000/api/health).
+Set `DATABASE_URL` in `.env` to your PostgreSQL connection string before running the database commands. The app also recognizes `BITSSTOCK_PRISMA_DATABASE_URL`, `BITSSTOCK_DATABASE_URL`, and `BITSSTOCK_POSTGRES_URL`. Set `DIRECT_URL` to the provider's direct connection string when available so Prisma migrations can use it. Prisma Client is generated into `lib/generated/prisma` during install. The starter catalog follows the item names in the provided BITS stock report. Check the database connection at [http://localhost:3000/api/health](http://localhost:3000/api/health).
+
+## Vercel deployment
+
+1. In the Vercel project, open **Storage** or **Marketplace** and add Prisma Postgres or Neon. Connect it to this project and allow the integration to add its database environment variables.
+2. In **Project Settings → Build and Deployment**, confirm the framework is Next.js and the root directory points to the directory containing this `package.json` and `next.config.ts`. Leave the build command on the default setting so Vercel runs `npm run build` (or the package manager equivalent).
+3. Redeploy. The build script applies committed Prisma migrations and then builds the app. Confirm the database variables are available to the deployment environment before it runs.
+4. Run `npm run db:seed` once with the production `DATABASE_URL` if you want the starter catalog in production. For local development, pull the Vercel development variables with `npx vercel env pull .env` (or copy the development database connection string into `.env`), then run the setup commands above.
+
+The existing SQLite migration history is retained in `prisma/migrations-sqlite` for reference. It is not applied to PostgreSQL. Records are not copied automatically; use the import steps below to migrate an existing local SQLite database, or run `npm run db:seed` to start with only the sample catalog.
+
+To import an existing local SQLite database instead of starting with the sample catalog, link this folder to the Vercel project, pull the production variables, apply the PostgreSQL schema, and import the rows:
+
+```bash
+npx vercel link
+npx vercel env pull .env.production.local --environment=production
+DOTENV_CONFIG_PATH=.env.production.local npm run db:deploy
+DOTENV_CONFIG_PATH=.env.production.local npm run db:import-sqlite
+```
+
+The import preserves IDs and timestamps and is transactional. It stops without writing if any application table in PostgreSQL already contains records. Do not run the catalog seed before importing; the SQLite database already includes its catalog rows.
 
 The home page lists saved daily reports and offers a one-per-day “Create today’s report” action. A new sheet copies each product’s previous closing quantity into its opening quantity; a first sheet starts at zero. The date is stored against the `Asia/Karachi` business day. Add items from the Catalog card; an item added after today’s sheet is created is appended to today’s snapshot.
 
@@ -54,4 +75,4 @@ npm run db:generate                           # regenerate Prisma Client
 npm run db:studio                             # open Prisma Studio
 ```
 
-SQLite is appropriate for local development and a single-process deployment with persistent disk. For multiple application instances or ephemeral/serverless filesystems, move to a server database before deployment.
+The app uses PostgreSQL in development and production so its data persists across Vercel serverless instances. Keep separate development and production database environments in Vercel to avoid preview deployments writing to production data.

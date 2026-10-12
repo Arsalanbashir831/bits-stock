@@ -1,6 +1,6 @@
 import "server-only";
 
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
@@ -8,8 +8,20 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  const adapter = new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
+  const connectionString = [
+    process.env.DATABASE_URL,
+    process.env.BITSSTOCK_PRISMA_DATABASE_URL,
+    process.env.BITSSTOCK_DATABASE_URL,
+    process.env.BITSSTOCK_POSTGRES_URL,
+  ].find((value) => value && /^postgres(?:ql)?:\/\//.test(value.trim()))?.trim();
+  if (!connectionString) {
+    throw new Error("Set DATABASE_URL or a BITSSTOCK_* PostgreSQL connection variable.");
+  }
+
+  const adapter = new PrismaPg({
+    connectionString,
+    max: 1,
+    connectionTimeoutMillis: 5_000,
   });
 
   return new PrismaClient({ adapter });
