@@ -75,7 +75,7 @@
   max-width: 520px;
   z-index: 30;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   background: #fff;
   border-top: 1px solid var(--m-line);
   padding-bottom: env(safe-area-inset-bottom);
@@ -89,9 +89,9 @@
   gap: 3px;
   min-height: 58px;
   padding: 8px 4px;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--m-muted);
   text-decoration: none;
@@ -175,6 +175,32 @@
   margin-top: 6px;
   font-size: 1.4rem;
   letter-spacing: -0.02em;
+}
+
+.m-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+
+.m-detail-grid > div {
+  min-width: 0;
+}
+
+.m-detail-grid span {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.13em;
+  color: var(--m-muted);
+  text-transform: uppercase;
+}
+
+.m-detail-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.87rem;
 }
 
 .m-card-title .m-kicker {

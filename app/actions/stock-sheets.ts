@@ -7,7 +7,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getBusinessDateKey, toSheetDate } from "@/lib/stock-sheet-date";
 
-const PORTAL_PAGES = new Set(["/m", "/m/sale", "/m/warranty", "/m/warranty/out", "/m/pending"]);
+const PORTAL_PAGES = new Set(["/m", "/m/sale", "/m/warranty", "/m/warranty/out", "/m/pending", "/m/billback"]);
 
 function portalReturnPath(formData: FormData) {
   const returnTo = String(formData.get("returnTo") ?? "");
@@ -92,6 +92,7 @@ function refreshSheet(dateKey: string) {
   revalidatePath("/m/warranty");
   revalidatePath("/m/warranty/out");
   revalidatePath("/m/pending");
+  revalidatePath("/m/billback");
   revalidatePath("/");
 }
 
@@ -571,7 +572,12 @@ export async function setPendingWarrantyBillBackCheck(formData: FormData) {
   if (!sheet) redirect(entryReturnPath(formData, dateKey, "pending-warranty", "pending-warranty"));
   if (sheet.status !== "OPEN") redirect(entryReturnPath(formData, dateKey, "pending-warranty", "closed"));
   const entry = await prisma.pendingWarrantyEntry.findFirst({
-    where: { id, stockSheet: { sheetDate: { lte: sheet.sheetDate } }, receivedDate: { lte: sheet.sheetDate } },
+    where: {
+      id,
+      stockSheet: { sheetDate: { lte: sheet.sheetDate } },
+      receivedDate: { lte: sheet.sheetDate },
+      resolvedDate: null,
+    },
     select: { id: true, billBackDate: true },
   });
   if (!entry) redirect(entryReturnPath(formData, dateKey, "pending-warranty", "pending-warranty"));

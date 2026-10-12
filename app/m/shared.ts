@@ -6,7 +6,7 @@ export function formatPaisa(paisa: number) {
 }
 
 export function portalNotice(query: { [key: string]: string | string[] | undefined }): { tone: "error" | "success"; text: string } | null {
-  if (query.added) return { tone: "success", text: "Entry saved to today’s stock sheet." };
+  if (query.added) return { tone: "success", text: "Changes saved to today’s stock sheet." };
   if (query.error === "closed") return { tone: "error", text: "Today’s stock sheet is closed. Entries are read-only." };
   if (query.error === "date") return { tone: "error", text: "Today’s stock sheet date is invalid. Reload the page and try again." };
   if (query.error) return { tone: "error", text: "Some details are missing or invalid. Check the form and try again." };
