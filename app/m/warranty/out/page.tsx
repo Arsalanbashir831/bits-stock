@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatSheetDate, getBusinessDateKey, toSheetDate } from "@/lib/stock-sheet-date";
 import { sortPartyEntries } from "@/lib/party-sort";
-import { openPendingClaims, portalNotice } from "@/app/m/shared";
+import { portalNotice } from "@/app/m/shared";
 import { PortalTabs } from "@/app/m/portal-tabs";
 import { WarrantyOutForm } from "@/app/m/warranty/out/warranty-out-form";
 
@@ -20,7 +20,17 @@ export default async function EmployeeWarrantyOutPage({
       where: { sheetDate: today },
       include: { warrantyOuts: { orderBy: { createdAt: "desc" }, include: { pendingWarrantyEntry: { select: { rmaNumber: true } } }, take: 12 } },
     }),
-    openPendingClaims(today),
+    prisma.pendingWarrantyEntry.findMany({
+      where: {
+        receivedDate: { lte: today },
+        stockSheet: { sheetDate: { lte: today } },
+        AND: [
+          { OR: [{ billBackDate: null }, { billBackDate: { gt: today } }] },
+          { OR: [{ resolvedDate: null }, { resolvedDate: { gt: today } }] },
+        ],
+      },
+      include: { sourceWarrantyIn: { select: { id: true } } },
+    }).then(sortPartyEntries),
   ]);
 
   const notice = portalNotice(query);
@@ -32,7 +42,7 @@ export default async function EmployeeWarrantyOutPage({
       <div className="m-head">
         <div className="m-kicker">Warranty out · {formatSheetDate(today, { day: "2-digit", month: "short", year: "numeric" })}</div>
         <h1>Add warranty out</h1>
-        <p>Replace a drive from the pending warranty list. It clears that claim and reduces quantity in hand.</p>
+        <p>Replace a drive against a pending claim or a Warranty IN received today. It clears the claim and reduces quantity in hand.</p>
       </div>
 
       <PortalTabs current="/m/warranty/out" tabs={[{ href: "/m/warranty", label: "Warranty in" }, { href: "/m/warranty/out", label: "Warranty out" }]} />
@@ -47,7 +57,7 @@ export default async function EmployeeWarrantyOutPage({
         claims={pendingClaims.map((claim) => ({
           id: claim.id,
           rmaNumber: claim.rmaNumber,
-          label: `${claim.party} · ${claim.itemName} · RMA ${claim.rmaNumber} · received ${formatSheetDate(claim.receivedDate, { day: "2-digit", month: "short" })}`,
+          label: `${claim.sourceWarrantyIn && claim.receivedDate.getTime() === today.getTime() ? "WARRANTY IN TODAY" : "PENDING WARRANTY"} · ${claim.party} · ${claim.itemName} · RMA ${claim.rmaNumber} · received ${formatSheetDate(claim.receivedDate, { day: "2-digit", month: "short" })}`,
         }))}
       />
 

@@ -14,7 +14,7 @@ export function WarrantyOutForm({ claims, dateKey, disabled }: { claims: ClaimOp
       <input type="hidden" name="sheetDate" value={dateKey} />
       <input type="hidden" name="returnTo" value="/m/warranty/out" />
       <div className="m-field">
-        <label htmlFor="m-wo-claim">Pending claim</label>
+        <label htmlFor="m-wo-claim">Pending warranty or today’s Warranty IN</label>
         <select
           id="m-wo-claim"
           name="pendingWarrantyId"
@@ -23,7 +23,7 @@ export function WarrantyOutForm({ claims, dateKey, disabled }: { claims: ClaimOp
           value={selectedId}
           onChange={(event) => setSelectedId(event.target.value)}
         >
-          <option value="" disabled>{claims.length ? "Select a pending claim" : "No open pending claims today"}</option>
+          <option value="" disabled>{claims.length ? "Select a warranty claim" : "No open warranty claims today"}</option>
           {claims.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
         </select>
       </div>
