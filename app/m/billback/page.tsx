@@ -23,7 +23,13 @@ export default async function EmployeeBillBackPage({
       ],
     },
     include: {
-      sourceWarrantyIn: { select: { invoiceNumber: true, invoiceDate: true } },
+      sourceWarrantyIn: {
+        select: {
+          invoiceNumber: true,
+          invoiceDate: true,
+          stockSheet: { select: { sheetDate: true } },
+        },
+      },
     },
     orderBy: [{ party: "asc" }, { receivedDate: "asc" }, { itemName: "asc" }],
   });
@@ -38,7 +44,9 @@ export default async function EmployeeBillBackPage({
     invoiceNumber: entry.sourceWarrantyIn?.invoiceNumber ?? "",
     rmaNumber: entry.rmaNumber,
     amountPaisa: entry.amountPaisa,
-    source: entry.sourceWarrantyIn ? "Warranty IN" : "Pending Warranty",
+    source: entry.sourceWarrantyIn?.stockSheet.sheetDate.getTime() === today.getTime()
+      ? "Warranty IN"
+      : "Pending Warranty",
   }));
 
   return (
