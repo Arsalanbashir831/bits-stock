@@ -1,0 +1,322 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Product {
+  id                String                 @id @default(cuid())
+  sku               String                 @unique
+  name              String
+  description       String?
+  category          String?
+  brand             String?
+  costPaisa         Int                    @default(0)
+  pricePaisa        Int                    @default(0)
+  reorderLevel      Int                    @default(0)
+  sortOrder         Int                    @default(0)
+  isActive          Boolean                @default(true)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  stockMovements    StockMovement[]
+  saleItems         SaleItem[]
+  receiptItems      StockReceiptItem[]
+  stockSheetLines   StockSheetLine[]
+  invoiceEntries    InvoiceEntry[]
+  warrantyIns       WarrantyInEntry[]
+  warrantyOuts      WarrantyOutEntry[]
+  pendingWarranties PendingWarrantyEntry[]
+  purchases         PurchaseEntry[]
+  labDeadEntries    LabDeadEntry[]
+
+  @@index([name])
+  @@index([category])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Supplier {
+  id        String         @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  receipts  StockReceipt[]
+
+  @@index([name])
+}
+
+model Party {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([name])
+}
+
+model StockReceipt {
+  id         String             @id @default(cuid())
+  supplierId String?
+  reference  String?
+  receivedAt DateTime           @default(now())
+  notes      String?
+  createdAt  DateTime           @default(now())
+  supplier   Supplier?          @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  items      StockReceiptItem[]
+
+  @@index([supplierId])
+  @@index([receivedAt])
+}
+
+model StockReceiptItem {
+  id            String       @id @default(cuid())
+  receiptId     String
+  productId     String
+  quantity      Int
+  unitCostPaisa Int
+  receipt       StockReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([receiptId])
+  @@index([productId])
+}
+
+model Sale {
+  id            String     @id @default(cuid())
+  receiptNumber String     @unique
+  customerId    String?
+  soldAt        DateTime   @default(now())
+  status        String     @default("COMPLETED")
+  subtotalPaisa Int        @default(0)
+  discountPaisa Int        @default(0)
+  totalPaisa    Int        @default(0)
+  paidPaisa     Int        @default(0)
+  notes         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  customer      Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items         SaleItem[]
+
+  @@index([customerId])
+  @@index([soldAt])
+  @@index([status])
+}
+
+model SaleItem {
+  id             String          @id @default(cuid())
+  saleId         String
+  productId      String
+  quantity       Int
+  unitPricePaisa Int
+  warrantyMonths Int             @default(0)
+  sale           Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  warrantyClaims WarrantyClaim[]
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model WarrantyClaim {
+  id          String    @id @default(cuid())
+  saleItemId  String
+  claimNumber String    @unique
+  status      String    @default("OPEN")
+  resolution  String?
+  issue       String
+  receivedAt  DateTime  @default(now())
+  resolvedAt  DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  saleItem    SaleItem  @relation(fields: [saleItemId], references: [id], onDelete: Restrict)
+
+  @@index([saleItemId])
+  @@index([status])
+  @@index([receivedAt])
+}
+
+model StockMovement {
+  id            String   @id @default(cuid())
+  productId     String
+  quantityDelta Int
+  type          String
+  referenceType String?
+  referenceId   String?
+  note          String?
+  createdAt     DateTime @default(now())
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([productId, createdAt])
+  @@index([referenceType, referenceId])
+}
+
+model StockSheet {
+  id                String                 @id @default(cuid())
+  sheetDate         DateTime               @unique
+  status            String                 @default("OPEN")
+  closingPreparedAt DateTime?
+  closedAt          DateTime?
+  billBackPaisa     Int                    @default(0)
+  deadOutQuantity   Int                    @default(0)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  lines             StockSheetLine[]
+  invoices          InvoiceEntry[]
+  warrantyIns       WarrantyInEntry[]
+  warrantyOuts      WarrantyOutEntry[]
+  pendingWarranties PendingWarrantyEntry[]
+  purchases         PurchaseEntry[]
+  labDeadEntries    LabDeadEntry[]
+
+  @@index([sheetDate])
+}
+
+model StockSheetLine {
+  id                  String     @id @default(cuid())
+  stockSheetId        String
+  productId           String
+  itemName            String
+  sectionName         String?
+  faultyForLab        Int        @default(0)
+  openingFaultyForLab Int        @default(0)
+  pendingWarranty     Int        @default(0)
+  closingQtyInHand    Int        @default(0)
+  openingQtyInHand    Int        @default(0)
+  openingPw           Int        @default(0)
+  purchase            Int        @default(0)
+  warrantyIn          Int        @default(0)
+  sale                Int        @default(0)
+  warrantyOut         Int        @default(0)
+  labDead             Int        @default(0)
+  stockSheet          StockSheet @relation(fields: [stockSheetId], references: [id], onDelete: Cascade)
+  product             Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([stockSheetId, productId])
+  @@index([productId])
+}
+
+model InvoiceEntry {
+  id            String     @id @default(cuid())
+  stockSheetId  String
+  productId     String
+  invoiceNumber String
+  itemName      String
+  quantity      Int
+  pricePaisa    Int
+  createdAt     DateTime   @default(now())
+  stockSheet    StockSheet @relation(fields: [stockSheetId], references: [id], onDelete: Cascade)
+  product       Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([stockSheetId, createdAt])
+  @@index([invoiceNumber])
+  @@index([productId])
+}
+
+model WarrantyInEntry {
+  id              String                @id @default(cuid())
+  stockSheetId    String
+  productId       String
+  party           String
+  itemName        String
+  invoiceNumber   String
+  invoiceDate     DateTime
+  rmaNumber       String
+  driveStatus     String                @default("OK")
+  amountPaisa     Int                   @default(0)
+  createdAt       DateTime              @default(now())
+  stockSheet      StockSheet            @relation(fields: [stockSheetId], references: [id], onDelete: Cascade)
+  product         Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  pendingWarranty PendingWarrantyEntry?
+
+  @@index([stockSheetId, createdAt])
+  @@index([rmaNumber])
+}
+
+model WarrantyOutEntry {
+  id                     String                @id @default(cuid())
+  stockSheetId           String
+  productId              String
+  party                  String
+  itemName               String
+  rmaSlipNumber          String
+  pendingWarrantyEntryId String?
+  createdAt              DateTime              @default(now())
+  stockSheet             StockSheet            @relation(fields: [stockSheetId], references: [id], onDelete: Cascade)
+  product                Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  pendingWarrantyEntry   PendingWarrantyEntry? @relation(fields: [pendingWarrantyEntryId], references: [id], onDelete: SetNull)
+
+  @@index([stockSheetId, createdAt])
+  @@index([rmaSlipNumber])
+}
+
+model PendingWarrantyEntry {
+  id                 String             @id @default(cuid())
+  stockSheetId       String
+  productId          String
+  itemName           String
+  party              String
+  receivedDate       DateTime
+  quantity           Int
+  invoiceDate        DateTime
+  rmaNumber          String
+  amountPaisa        Int
+  billBackChecked    Boolean            @default(false)
+  billBackDate       DateTime?
+  resolvedDate       DateTime?
+  sourceWarrantyInId String?            @unique
+  createdAt          DateTime           @default(now())
+  stockSheet         StockSheet         @relation(fields: [stockSheetId], references: [id], onDelete: Cascade)
+  product            Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  sourceWarrantyIn   WarrantyInEntry?   @relation(fields: [sourceWarrantyInId], references: [id], onDelete: SetNull)
+  warrantyOuts       WarrantyOutEntry[]
+
+  @@index([stockSheetId, createdAt])
+  @@index([rmaNumber])
+}
+
+model PurchaseEntry {
+  id           String     @id @default(cuid())
+  stockSheetId String
+  productId    String
+  party        String     @default("")
+  quantity     Int
+  createdAt    DateTime   @default(now())
+  stockSheet   StockSheet @relation(fields: [stockSheetId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([stockSheetId, createdAt])
+  @@index([productId])
+}
+
+model LabDeadEntry {
+  id           String     @id @default(cuid())
+  stockSheetId String
+  productId    String
+  quantity     Int
+  createdAt    DateTime   @default(now())
+  stockSheet   StockSheet @relation(fields: [stockSheetId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([stockSheetId, createdAt])
+  @@index([productId])
+}
