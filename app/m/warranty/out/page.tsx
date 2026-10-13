@@ -4,6 +4,8 @@ import { sortPartyEntries } from "@/lib/party-sort";
 import { portalNotice } from "@/app/m/shared";
 import { PortalTabs } from "@/app/m/portal-tabs";
 import { WarrantyOutForm } from "@/app/m/warranty/out/warranty-out-form";
+import { deleteWarrantyOutEntry, editWarrantyOutEntry } from "@/app/actions/stock-sheets";
+import { DeleteEntryForm } from "@/app/m/delete-entry-form";
 
 export const runtime = "nodejs";
 
@@ -18,7 +20,7 @@ export default async function EmployeeWarrantyOutPage({
   const [sheet, pendingClaims] = await Promise.all([
     prisma.stockSheet.findUnique({
       where: { sheetDate: today },
-      include: { warrantyOuts: { orderBy: { createdAt: "desc" }, include: { pendingWarrantyEntry: { select: { rmaNumber: true } } }, take: 12 } },
+      include: { warrantyOuts: { orderBy: { createdAt: "desc" }, include: { pendingWarrantyEntry: { select: { id: true, rmaNumber: true } } } } },
     }),
     prisma.pendingWarrantyEntry.findMany({
       where: {
@@ -66,11 +68,30 @@ export default async function EmployeeWarrantyOutPage({
         {warrantyOuts.length ? (
           <div className="m-rows">
             {warrantyOuts.map((entry) => (
-              <div className="m-row" key={entry.id}>
-                <div className="m-row-main">
-                  <strong>{entry.party}</strong>
-                  <span>{entry.itemName} · slip {entry.rmaSlipNumber} · RMA {entry.pendingWarrantyEntry?.rmaNumber ?? "—"}</span>
+              <div className="m-record" key={entry.id}>
+                <div className="m-row">
+                  <div className="m-row-main">
+                    <strong>{entry.party}</strong>
+                    <span>{entry.itemName} · slip {entry.rmaSlipNumber} · RMA {entry.pendingWarrantyEntry?.rmaNumber ?? "—"}</span>
+                  </div>
                 </div>
+                {!readOnly && <details className="m-entry-edit">
+                  <summary>Edit or delete</summary>
+                  {entry.pendingWarrantyEntry && <form className="m-form m-edit-form" action={editWarrantyOutEntry}>
+                    <input type="hidden" name="sheetDate" value={dateKey} />
+                    <input type="hidden" name="returnTo" value="/m/warranty/out" />
+                    <input type="hidden" name="warrantyOutId" value={entry.id} />
+                    <input type="hidden" name="pendingWarrantyId" value={entry.pendingWarrantyEntry.id} />
+                    <div className="m-field"><label htmlFor={`wo-slip-${entry.id}`}>RMA slip number</label><input id={`wo-slip-${entry.id}`} name="rmaSlipNumber" required defaultValue={entry.rmaSlipNumber} /></div>
+                    <button className="m-submit" type="submit">Save changes</button>
+                  </form>}
+                  <DeleteEntryForm action={deleteWarrantyOutEntry}>
+                    <input type="hidden" name="sheetDate" value={dateKey} />
+                    <input type="hidden" name="returnTo" value="/m/warranty/out" />
+                    <input type="hidden" name="warrantyOutId" value={entry.id} />
+                    <button className="m-delete-button" type="submit">Delete warranty out</button>
+                  </DeleteEntryForm>
+                </details>}
               </div>
             ))}
           </div>

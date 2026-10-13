@@ -1,9 +1,10 @@
-import { addWarrantyInEntry } from "@/app/actions/stock-sheets";
+import { addWarrantyInEntry, deleteWarrantyInEntry, editWarrantyInEntry } from "@/app/actions/stock-sheets";
 import { prisma } from "@/lib/prisma";
 import { formatSheetDate, getBusinessDateKey, toSheetDate } from "@/lib/stock-sheet-date";
 import { sortPartyEntries } from "@/lib/party-sort";
 import { activeProducts, formatPaisa, partyNames, portalNotice } from "@/app/m/shared";
 import { PortalTabs } from "@/app/m/portal-tabs";
+import { DeleteEntryForm } from "@/app/m/delete-entry-form";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,7 @@ export default async function EmployeeWarrantyInPage({
   const [sheet, products, parties] = await Promise.all([
     prisma.stockSheet.findUnique({
       where: { sheetDate: today },
-      include: { warrantyIns: { orderBy: { createdAt: "desc" }, take: 12 } },
+      include: { warrantyIns: { orderBy: { createdAt: "desc" } } },
     }),
     activeProducts(),
     partyNames(),
@@ -88,13 +89,37 @@ export default async function EmployeeWarrantyInPage({
         {warrantyIns.length ? (
           <div className="m-rows">
             {warrantyIns.map((entry) => (
-              <div className="m-row" key={entry.id}>
-                <div className="m-row-main">
-                  <strong>{entry.party}</strong>
-                  <span>{entry.itemName} · RMA {entry.rmaNumber} · INV {entry.invoiceNumber}</span>
-                  {entry.driveStatus === "FAULTY_FOR_LAB" && <span className="m-tag is-faulty">FAULTY FOR LAB</span>}
+              <div className="m-record" key={entry.id}>
+                <div className="m-row">
+                  <div className="m-row-main">
+                    <strong>{entry.party}</strong>
+                    <span>{entry.itemName} · RMA {entry.rmaNumber} · INV {entry.invoiceNumber}</span>
+                    {entry.driveStatus === "FAULTY_FOR_LAB" && <span className="m-tag is-faulty">FAULTY FOR LAB</span>}
+                  </div>
+                  <span className="m-row-value">{formatPaisa(entry.amountPaisa)}</span>
                 </div>
-                <span className="m-row-value">{formatPaisa(entry.amountPaisa)}</span>
+                {!readOnly && <details className="m-entry-edit">
+                  <summary>Edit or delete</summary>
+                  <form className="m-form m-edit-form" action={editWarrantyInEntry}>
+                    <input type="hidden" name="sheetDate" value={dateKey} />
+                    <input type="hidden" name="returnTo" value="/m/warranty" />
+                    <input type="hidden" name="warrantyInId" value={entry.id} />
+                    <div className="m-field"><label htmlFor={`wi-party-${entry.id}`}>Party</label><input id={`wi-party-${entry.id}`} name="party" list={`wi-parties-${entry.id}`} required defaultValue={entry.party} /><datalist id={`wi-parties-${entry.id}`}>{parties.map((party) => <option key={party.name} value={party.name} />)}</datalist></div>
+                    <div className="m-field"><label htmlFor={`wi-product-${entry.id}`}>Item</label><select id={`wi-product-${entry.id}`} name="productId" required defaultValue={entry.productId}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></div>
+                    <div className="m-field"><label htmlFor={`wi-invoice-${entry.id}`}>Invoice number</label><input id={`wi-invoice-${entry.id}`} name="invoiceNumber" required defaultValue={entry.invoiceNumber} /></div>
+                    <div className="m-field"><label htmlFor={`wi-invoice-date-${entry.id}`}>Date of invoice</label><input id={`wi-invoice-date-${entry.id}`} name="invoiceDate" type="date" required defaultValue={entry.invoiceDate.toISOString().slice(0, 10)} /></div>
+                    <div className="m-field"><label htmlFor={`wi-rma-${entry.id}`}>RMA number</label><input id={`wi-rma-${entry.id}`} name="rmaNumber" required defaultValue={entry.rmaNumber} /></div>
+                    <div className="m-field"><label htmlFor={`wi-amount-${entry.id}`}>Pending amount · PKR</label><input id={`wi-amount-${entry.id}`} name="amount" type="number" min="0" step="0.01" required defaultValue={(entry.amountPaisa / 100).toFixed(2)} /></div>
+                    <div className="m-field"><label htmlFor={`wi-status-${entry.id}`}>Drive status</label><select id={`wi-status-${entry.id}`} name="driveStatus" required defaultValue={entry.driveStatus}><option value="FAULTY_FOR_LAB">Add to Faulty For Lab</option><option value="OK">100% OK</option></select></div>
+                    <button className="m-submit" type="submit">Save changes</button>
+                  </form>
+                  <DeleteEntryForm action={deleteWarrantyInEntry}>
+                    <input type="hidden" name="sheetDate" value={dateKey} />
+                    <input type="hidden" name="returnTo" value="/m/warranty" />
+                    <input type="hidden" name="warrantyInId" value={entry.id} />
+                    <button className="m-delete-button" type="submit">Delete warranty in</button>
+                  </DeleteEntryForm>
+                </details>}
               </div>
             ))}
           </div>

@@ -31,7 +31,7 @@ export default async function EmployeePendingPage({
       <div className="m-head">
         <div className="m-kicker">Pending warranty · {formatSheetDate(today, { day: "2-digit", month: "short", year: "numeric" })}</div>
         <h1>Pending warranty</h1>
-        <p>{String(claims.length).padStart(2, "0")} open claim{claims.length === 1 ? "" : "s"} carried into today, across {groups.size} {groups.size === 1 ? "party" : "parties"}.</p>
+        <p>{String(claims.length).padStart(2, "0")} open claim{claims.length === 1 ? "" : "s"} carried into today, across {groups.size} {groups.size === 1 ? "party" : "parties"}. Claims update automatically as warranty and bill back entries change.</p>
       </div>
 
       {notice && <div className={`m-notice ${notice.tone}`}>{notice.text}</div>}
@@ -51,7 +51,6 @@ export default async function EmployeePendingPage({
                     <span>RMA {entry.rmaNumber} · received {formatSheetDate(entry.receivedDate, { day: "2-digit", month: "short" })} · qty {entry.quantity}</span>
                     {entry.billBackDate?.getTime() === today.getTime() && <span className="m-tag is-billback">BILL BACK TODAY</span>}
                   </div>
-                  <span className="m-row-value">{formatPaisa(entry.amountPaisa)}</span>
                 </div>
               ))}
             </div>

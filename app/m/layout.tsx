@@ -22,6 +22,7 @@ const TABS = [
   { href: "/m/warranty", label: "Warranty" },
   { href: "/m/pending", label: "Pending" },
   { href: "/m/billback", label: "Bill Back" },
+  { href: "/m/lab-dead", label: "Lab Dead Out" },
 ];
 
 export default function EmployeePortalLayout({ children }: { children: ReactNode }) {

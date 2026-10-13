@@ -1,7 +1,8 @@
-import { addInvoiceEntry } from "@/app/actions/stock-sheets";
+import { addInvoiceEntry, deleteInvoiceEntry, editInvoiceEntry } from "@/app/actions/stock-sheets";
 import { prisma } from "@/lib/prisma";
 import { formatSheetDate, getBusinessDateKey, toSheetDate } from "@/lib/stock-sheet-date";
 import { activeProducts, formatPaisa, portalNotice } from "@/app/m/shared";
+import { DeleteEntryForm } from "@/app/m/delete-entry-form";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ export default async function EmployeeSalePage({
   const [sheet, products] = await Promise.all([
     prisma.stockSheet.findUnique({
       where: { sheetDate: today },
-      include: { invoices: { orderBy: { createdAt: "desc" }, take: 12 } },
+      include: { invoices: { orderBy: { createdAt: "desc" } } },
     }),
     activeProducts(),
   ]);
@@ -66,12 +67,33 @@ export default async function EmployeeSalePage({
         {sheet?.invoices.length ? (
           <div className="m-rows">
             {sheet.invoices.map((entry) => (
-              <div className="m-row" key={entry.id}>
-                <div className="m-row-main">
-                  <strong>{entry.itemName}</strong>
-                  <span>INV {entry.invoiceNumber} · {entry.quantity} × {formatPaisa(entry.pricePaisa)}</span>
+              <div className="m-record" key={entry.id}>
+                <div className="m-row">
+                  <div className="m-row-main">
+                    <strong>{entry.itemName}</strong>
+                    <span>INV {entry.invoiceNumber} · {entry.quantity} × {formatPaisa(entry.pricePaisa)}</span>
+                  </div>
+                  <span className="m-row-value">{formatPaisa(entry.quantity * entry.pricePaisa)}</span>
                 </div>
-                <span className="m-row-value">{formatPaisa(entry.quantity * entry.pricePaisa)}</span>
+                {!readOnly && <details className="m-entry-edit">
+                  <summary>Edit or delete</summary>
+                  <form className="m-form m-edit-form" action={editInvoiceEntry}>
+                    <input type="hidden" name="sheetDate" value={dateKey} />
+                    <input type="hidden" name="returnTo" value="/m/sale" />
+                    <input type="hidden" name="invoiceId" value={entry.id} />
+                    <div className="m-field"><label htmlFor={`sale-product-${entry.id}`}>Item</label><select id={`sale-product-${entry.id}`} name="productId" required defaultValue={entry.productId}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></div>
+                    <div className="m-field"><label htmlFor={`sale-invoice-${entry.id}`}>Invoice number</label><input id={`sale-invoice-${entry.id}`} name="invoiceNumber" required defaultValue={entry.invoiceNumber} /></div>
+                    <div className="m-field"><label htmlFor={`sale-quantity-${entry.id}`}>Quantity</label><input id={`sale-quantity-${entry.id}`} name="quantity" type="number" min="1" step="1" required defaultValue={entry.quantity} /></div>
+                    <div className="m-field"><label htmlFor={`sale-price-${entry.id}`}>Price per unit · PKR</label><input id={`sale-price-${entry.id}`} name="price" type="number" min="0" step="0.01" required defaultValue={(entry.pricePaisa / 100).toFixed(2)} /></div>
+                    <button className="m-submit" type="submit">Save changes</button>
+                  </form>
+                  <DeleteEntryForm action={deleteInvoiceEntry}>
+                    <input type="hidden" name="sheetDate" value={dateKey} />
+                    <input type="hidden" name="returnTo" value="/m/sale" />
+                    <input type="hidden" name="invoiceId" value={entry.id} />
+                    <button className="m-delete-button" type="submit">Delete sale</button>
+                  </DeleteEntryForm>
+                </details>}
               </div>
             ))}
           </div>

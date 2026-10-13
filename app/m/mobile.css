@@ -75,7 +75,7 @@
   max-width: 520px;
   z-index: 30;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   background: #fff;
   border-top: 1px solid var(--m-line);
   padding-bottom: env(safe-area-inset-bottom);
@@ -263,6 +263,107 @@
   color: var(--m-muted);
 }
 
+.m-field-label {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--m-muted);
+}
+
+.m-checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.m-check-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid var(--m-line);
+  border-radius: 12px;
+}
+
+.m-field .m-check-item {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--m-ink) !important;
+  font-family: inherit !important;
+  font-size: 0.85rem !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  cursor: pointer;
+}
+
+.m-field .m-check-item input {
+  flex: 0 0 22px !important;
+  width: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  height: 22px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 4px !important;
+  accent-color: var(--m-ink);
+  appearance: checkbox !important;
+}
+
+.m-check-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.m-check-copy strong {
+  overflow-wrap: anywhere;
+  font-size: 0.86rem;
+}
+
+.m-check-copy small {
+  color: var(--m-muted);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
+
+.m-available-count {
+  padding: 5px 8px;
+  border: 1px solid var(--m-line);
+  border-radius: 999px;
+  background: var(--m-paper);
+  color: var(--m-ink);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.64rem;
+  white-space: nowrap;
+}
+
+.m-field .m-check-quantity {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--m-muted);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+}
+
+.m-field .m-check-quantity input {
+  width: 72px !important;
+  min-width: 72px !important;
+  min-height: 42px !important;
+  height: 42px !important;
+  padding: 6px 8px !important;
+  text-align: center;
+  appearance: auto !important;
+}
+
 .m-field input,
 .m-field select {
   width: 100%;
@@ -320,6 +421,66 @@
 .m-rows {
   display: grid;
   gap: 10px;
+}
+
+.m-record {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--m-line);
+  border-radius: 14px;
+}
+
+.m-record .m-row {
+  border: 0;
+  padding: 3px;
+}
+
+.m-add-entry > summary {
+  min-height: 24px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.m-add-entry[open] > summary {
+  margin-bottom: 10px;
+}
+
+.m-entry-edit {
+  border-top: 1px solid var(--m-line);
+  padding: 8px 3px 2px;
+}
+
+.m-entry-edit summary {
+  width: fit-content;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  color: var(--m-ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.m-edit-form {
+  margin: 10px 0;
+  padding: 12px;
+  background: var(--m-paper);
+  border: 1px solid var(--m-line);
+  border-radius: 12px;
+}
+
+.m-delete-button {
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid #e6c3be;
+  border-radius: 11px;
+  background: #fff;
+  color: var(--m-red);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .m-row {

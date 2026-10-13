@@ -20,7 +20,7 @@ type BillBackClaim = {
   source: string;
 };
 
-export default function BillBackForm({ claims, dateKey }: { claims: BillBackClaim[]; dateKey: string }) {
+export default function BillBackForm({ claims, dateKey, disabled }: { claims: BillBackClaim[]; dateKey: string; disabled: boolean }) {
   const [selectedId, setSelectedId] = useState("");
   const selected = claims.find((claim) => claim.id === selectedId);
 
@@ -35,7 +35,7 @@ export default function BillBackForm({ claims, dateKey }: { claims: BillBackClai
       <div className="m-card">
         <div className="m-field">
           <label htmlFor="billback-claim">Warranty IN or Pending Warranty</label>
-          <select id="billback-claim" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+            <select id="billback-claim" value={selectedId} onChange={(event) => setSelectedId(event.target.value)} disabled={disabled}>
             <option value="">Select a claim</option>
             {claims.map((claim) => (
               <option key={claim.id} value={claim.id}>
@@ -65,7 +65,7 @@ export default function BillBackForm({ claims, dateKey }: { claims: BillBackClai
               <div><span>Amount</span><strong>PKR {formatPaisa(selected.amountPaisa)}</strong></div>
             </div>
           </section>
-          <button className="m-submit" type="submit">Mark bill back today</button>
+          <button className="m-submit" type="submit" disabled={disabled}>Mark bill back today</button>
         </>
       )}
     </form>
