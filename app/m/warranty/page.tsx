@@ -71,6 +71,10 @@ export default async function EmployeeWarrantyInPage({
           <input id="m-wi-rma" name="rmaNumber" required disabled={readOnly} inputMode="numeric" autoComplete="off" placeholder="RMA no." />
         </div>
         <div className="m-field">
+          <label htmlFor="m-wi-quantity">Quantity</label>
+          <input id="m-wi-quantity" name="quantity" type="number" min="1" step="1" required disabled={readOnly} defaultValue={1} />
+        </div>
+        <div className="m-field">
           <label htmlFor="m-wi-amount">Pending amount · PKR</label>
           <input id="m-wi-amount" name="amount" type="number" min="0" step="0.01" required disabled={readOnly} placeholder="0.00" />
         </div>
@@ -93,7 +97,7 @@ export default async function EmployeeWarrantyInPage({
                 <div className="m-row">
                   <div className="m-row-main">
                     <strong>{entry.party}</strong>
-                    <span>{entry.itemName} · RMA {entry.rmaNumber} · INV {entry.invoiceNumber}</span>
+                    <span>{entry.itemName} · Qty {entry.quantity} · RMA {entry.rmaNumber} · INV {entry.invoiceNumber}</span>
                     {entry.driveStatus === "FAULTY_FOR_LAB" && <span className="m-tag is-faulty">FAULTY FOR LAB</span>}
                   </div>
                   <span className="m-row-value">{formatPaisa(entry.amountPaisa)}</span>
@@ -109,6 +113,7 @@ export default async function EmployeeWarrantyInPage({
                     <div className="m-field"><label htmlFor={`wi-invoice-${entry.id}`}>Invoice number</label><input id={`wi-invoice-${entry.id}`} name="invoiceNumber" required defaultValue={entry.invoiceNumber} /></div>
                     <div className="m-field"><label htmlFor={`wi-invoice-date-${entry.id}`}>Date of invoice</label><input id={`wi-invoice-date-${entry.id}`} name="invoiceDate" type="date" required defaultValue={entry.invoiceDate.toISOString().slice(0, 10)} /></div>
                     <div className="m-field"><label htmlFor={`wi-rma-${entry.id}`}>RMA number</label><input id={`wi-rma-${entry.id}`} name="rmaNumber" required defaultValue={entry.rmaNumber} /></div>
+                    <div className="m-field"><label htmlFor={`wi-quantity-${entry.id}`}>Quantity</label><input id={`wi-quantity-${entry.id}`} name="quantity" type="number" min="1" step="1" required defaultValue={entry.quantity} /></div>
                     <div className="m-field"><label htmlFor={`wi-amount-${entry.id}`}>Pending amount · PKR</label><input id={`wi-amount-${entry.id}`} name="amount" type="number" min="0" step="0.01" required defaultValue={(entry.amountPaisa / 100).toFixed(2)} /></div>
                     <div className="m-field"><label htmlFor={`wi-status-${entry.id}`}>Drive status</label><select id={`wi-status-${entry.id}`} name="driveStatus" required defaultValue={entry.driveStatus}><option value="FAULTY_FOR_LAB">Add to Faulty For Lab</option><option value="OK">100% OK</option></select></div>
                     <button className="m-submit" type="submit">Save changes</button>

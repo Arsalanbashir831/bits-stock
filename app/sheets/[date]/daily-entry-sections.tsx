@@ -24,7 +24,7 @@ import { formatSheetDate } from "@/lib/stock-sheet-date";
 type ProductOption = { id: string; name: string };
 type PartyOption = { name: string };
 type InvoiceRow = { id: string; productId: string; invoiceNumber: string; itemName: string; quantity: number; pricePaisa: number };
-type WarrantyInRow = { id: string; productId: string; party: string; itemName: string; invoiceNumber: string; invoiceDate: Date; rmaNumber: string; driveStatus: string; amountPaisa: number };
+type WarrantyInRow = { id: string; productId: string; party: string; itemName: string; invoiceNumber: string; invoiceDate: Date; rmaNumber: string; driveStatus: string; quantity: number; amountPaisa: number };
 type WarrantyOutRow = { id: string; party: string; itemName: string; rmaSlipNumber: string; pendingWarrantyEntryId: string | null; pendingWarrantyEntry: { rmaNumber: string } | null };
 type PendingWarrantyRow = { id: string; productId: string; itemName: string; party: string; receivedDate: Date; quantity: number; invoiceDate: Date; rmaNumber: string; amountPaisa: number; billBackChecked: boolean };
 type QuantityEntry = { id: string; productId: string; quantity: number; product: { name: string } };
@@ -258,9 +258,9 @@ export function DailyEntrySections({
           <span className="entry-section-date">{formatSheetDate(new Date(`${dateKey}T00:00:00.000Z`), dateOptions)}</span>
         </div>
         <div className="entry-table-card">
-          <div className="entry-table-scroll"><table className="entry-table"><thead><tr><th>PARTY</th><th>ITEM</th><th>INV. NO.</th><th>DATE OF INV.</th><th>RMA #</th><th>DRIVE STATUS</th><th>PENDING AMOUNT</th><th>ACTIONS</th></tr></thead><tbody>
+          <div className="entry-table-scroll"><table className="entry-table"><thead><tr><th>PARTY</th><th>ITEM</th><th>QTY.</th><th>INV. NO.</th><th>DATE OF INV.</th><th>RMA #</th><th>DRIVE STATUS</th><th>PENDING AMOUNT</th><th>ACTIONS</th></tr></thead><tbody>
             {warrantyIns.length ? warrantyIns.map((entry) => <tr key={entry.id}>
-              <td data-label="Party">{entry.party}</td><td data-label="Item">{entry.itemName}</td><td data-label="Invoice number" className="entry-ref">{entry.invoiceNumber}</td><td data-label="Invoice date">{formatSheetDate(entry.invoiceDate, dateOptions)}</td><td data-label="RMA number" className="entry-ref">{entry.rmaNumber}</td><td data-label="Drive status"><span className={`entry-status ${entry.driveStatus === "OK" ? "is-ok" : "is-faulty"}`}>{entry.driveStatus === "OK" ? "100% OK" : "Add to Faulty For Lab"}</span></td><td data-label="Pending amount">{formatMoney(entry.amountPaisa)}</td>
+              <td data-label="Party">{entry.party}</td><td data-label="Item">{entry.itemName}</td><td data-label="Quantity">{entry.quantity}</td><td data-label="Invoice number" className="entry-ref">{entry.invoiceNumber}</td><td data-label="Invoice date">{formatSheetDate(entry.invoiceDate, dateOptions)}</td><td data-label="RMA number" className="entry-ref">{entry.rmaNumber}</td><td data-label="Drive status"><span className={`entry-status ${entry.driveStatus === "OK" ? "is-ok" : "is-faulty"}`}>{entry.driveStatus === "OK" ? "100% OK" : "Add to Faulty For Lab"}</span></td><td data-label="Pending amount">{formatMoney(entry.amountPaisa)}</td>
               <RowActions readOnly={readOnly} editOnly={editOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deleteWarrantyInEntry} idName="warrantyInId" id={entry.id} label={`warranty in ${entry.rmaNumber}`}
                 editForm={<form className="pending-edit-form" action={editWarrantyInEntry}>
                   <EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} />
@@ -270,11 +270,12 @@ export function DailyEntrySections({
                   <Field label="INVOICE NUMBER" name="invoiceNumber" defaultValue={entry.invoiceNumber} />
                   <Field label="DATE OF INVOICE" name="invoiceDate" type="date" defaultValue={entry.invoiceDate.toISOString().slice(0, 10)} />
                   <Field label="RMA #" name="rmaNumber" defaultValue={entry.rmaNumber} />
+                  <Field label="QTY." name="quantity" type="number" min="1" step="1" defaultValue={entry.quantity} />
                   <Field label="PENDING AMOUNT · PKR" name="amount" type="number" min="0" step="0.01" defaultValue={(entry.amountPaisa / 100).toFixed(2)} />
                   <label className="entry-field"><span>DRIVE STATUS</span><select name="driveStatus" required defaultValue={entry.driveStatus}><option value="OK">100% OK</option><option value="FAULTY_FOR_LAB">Add to Faulty For Lab</option></select></label>
                   <button className="entry-submit" type="submit">Save changes <span>↗</span></button>
                 </form>} />
-            </tr>) : <TableEmpty columns={8}>No warranty items received today.</TableEmpty>}
+            </tr>) : <TableEmpty columns={9}>No warranty items received today.</TableEmpty>}
           </tbody></table></div>
           <AddEntry title="Add warranty in entry" readOnly={readOnly}>
             <form className="entry-form" action={addWarrantyInEntry}>
@@ -284,6 +285,7 @@ export function DailyEntrySections({
               <Field label="INVOICE NUMBER" name="invoiceNumber" placeholder="Invoice no." />
               <Field label="DATE OF INVOICE" name="invoiceDate" type="date" />
               <Field label="RMA #" name="rmaNumber" placeholder="RMA number" />
+              <Field label="QTY." name="quantity" type="number" min="1" step="1" defaultValue={1} />
               <Field label="PENDING AMOUNT · PKR" name="amount" type="number" min="0" step="0.01" placeholder="0.00" />
               <label className="entry-field"><span>DRIVE STATUS</span><select name="driveStatus" required defaultValue="OK"><option value="OK">100% OK</option><option value="FAULTY_FOR_LAB">Add to Faulty For Lab</option></select></label>
               <button className="entry-submit" type="submit">Save warranty in <span>↗</span></button>

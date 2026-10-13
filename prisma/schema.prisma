@@ -242,6 +242,7 @@ model WarrantyInEntry {
   invoiceDate     DateTime
   rmaNumber       String
   driveStatus     String                @default("OK")
+  quantity        Int                   @default(1)
   amountPaisa     Int                   @default(0)
   createdAt       DateTime              @default(now())
   stockSheet      StockSheet            @relation(fields: [stockSheetId], references: [id], onDelete: Cascade)

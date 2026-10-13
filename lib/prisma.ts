@@ -5,7 +5,10 @@ import { PrismaClient } from "@/lib/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
+  prismaCacheVersion?: number;
 };
+
+const PRISMA_CLIENT_CACHE_VERSION = 2;
 
 function createPrismaClient() {
   const connectionString = [
@@ -27,8 +30,12 @@ function createPrismaClient() {
   return new PrismaClient({ adapter, transactionOptions: { timeout: 30_000 } });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export const prisma =
+  globalForPrisma.prismaCacheVersion === PRISMA_CLIENT_CACHE_VERSION && globalForPrisma.prisma
+    ? globalForPrisma.prisma
+    : createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
+  globalForPrisma.prismaCacheVersion = PRISMA_CLIENT_CACHE_VERSION;
 }

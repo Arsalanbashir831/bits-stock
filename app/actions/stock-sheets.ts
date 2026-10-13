@@ -107,14 +107,15 @@ async function recalculateProduct(productId: string, tx: Prisma.TransactionClien
     tx.stockSheet.findMany({ where: { lines: { some: { productId } } }, orderBy: { sheetDate: "asc" }, include: { lines: { where: { productId } } } }),
     tx.purchaseEntry.findMany({ where: { productId }, select: { stockSheetId: true, quantity: true } }),
     tx.invoiceEntry.findMany({ where: { productId }, select: { stockSheetId: true, quantity: true } }),
-    tx.warrantyInEntry.findMany({ where: { productId }, select: { stockSheetId: true, driveStatus: true } }),
-    tx.warrantyOutEntry.findMany({ where: { productId }, select: { stockSheetId: true } }),
+    tx.warrantyInEntry.findMany({ where: { productId }, select: { stockSheetId: true, driveStatus: true, quantity: true } }),
+    tx.warrantyOutEntry.findMany({ where: { productId }, select: { stockSheetId: true, pendingWarrantyEntry: { select: { quantity: true } } } }),
     tx.labDeadEntry.findMany({ where: { productId }, select: { stockSheetId: true, quantity: true } }),
     tx.pendingWarrantyEntry.findMany({ where: { productId }, select: { stockSheet: { select: { sheetDate: true } }, receivedDate: true, quantity: true, resolvedDate: true, billBackDate: true } }),
   ]);
   const sumFor = (rows: Array<{ stockSheetId: string; quantity: number }>, sheetId: string) => rows.reduce((sum, row) => sum + (row.stockSheetId === sheetId ? row.quantity : 0), 0);
-  const countFor = (rows: Array<{ stockSheetId: string }>, sheetId: string) => rows.reduce((sum, row) => sum + Number(row.stockSheetId === sheetId), 0);
-  const faultyInFor = (sheetId: string) => warrantyIns.reduce((sum, row) => sum + Number(row.stockSheetId === sheetId && row.driveStatus === "FAULTY_FOR_LAB"), 0);
+  const warrantyInFor = (sheetId: string) => warrantyIns.reduce((sum, row) => sum + (row.stockSheetId === sheetId ? row.quantity : 0), 0);
+  const faultyInFor = (sheetId: string) => warrantyIns.reduce((sum, row) => sum + (row.stockSheetId === sheetId && row.driveStatus === "FAULTY_FOR_LAB" ? row.quantity : 0), 0);
+  const warrantyOutFor = (sheetId: string) => warrantyOuts.reduce((sum, row) => sum + (row.stockSheetId === sheetId ? row.pendingWarrantyEntry?.quantity ?? 1 : 0), 0);
   let previousClosing = sheets[0]?.lines[0]?.openingQtyInHand ?? 0;
   let previousFaulty = sheets[0]?.lines[0]?.openingFaultyForLab ?? 0;
   let isFirst = true;
@@ -136,8 +137,8 @@ async function recalculateProduct(productId: string, tx: Prisma.TransactionClien
     const openingPw = pendingCountFor(sheet.sheetDate, true);
     const purchase = sumFor(purchases, sheet.id);
     const sale = sumFor(invoices, sheet.id);
-    const warrantyIn = countFor(warrantyIns, sheet.id);
-    const warrantyOut = countFor(warrantyOuts, sheet.id);
+    const warrantyIn = warrantyInFor(sheet.id);
+    const warrantyOut = warrantyOutFor(sheet.id);
     const labDead = sumFor(labDeadEntries, sheet.id);
     const pendingWarranty = pendingCountFor(sheet.sheetDate, false);
     const faultyForLab = Math.max(0, openingFaultyForLab + faultyInFor(sheet.id) - labDead);
@@ -373,10 +374,11 @@ export async function addWarrantyInEntry(formData: FormData) {
   const invoiceNumber = String(formData.get("invoiceNumber") ?? "").trim();
   const invoiceDate = String(formData.get("invoiceDate") ?? "");
   const rmaNumber = String(formData.get("rmaNumber") ?? "").trim();
+  const quantity = Number(formData.get("quantity"));
   const amountPaisa = parsePaisa(formData.get("amount"));
   const driveStatus = String(formData.get("driveStatus") ?? "");
   const { sheet, product } = await getEntryContext(formData);
-  if (!party || !invoiceNumber || !rmaNumber || !invoiceDate || amountPaisa === null || !["OK", "FAULTY_FOR_LAB"].includes(driveStatus)) redirect(entryReturnPath(formData, dateKey, "today-warranty-in", "warranty-in"));
+  if (!party || !invoiceNumber || !rmaNumber || !invoiceDate || !Number.isSafeInteger(quantity) || quantity < 1 || amountPaisa === null || !["OK", "FAULTY_FOR_LAB"].includes(driveStatus)) redirect(entryReturnPath(formData, dateKey, "today-warranty-in", "warranty-in"));
 
   await prisma.$transaction(async (tx) => {
     await requireOpenSheet(tx, sheet.id, formData, dateKey, "today-warranty-in");
@@ -391,6 +393,7 @@ export async function addWarrantyInEntry(formData: FormData) {
         invoiceDate: toSheetDate(invoiceDate),
         rmaNumber,
         driveStatus,
+        quantity,
         amountPaisa,
       },
       select: { id: true },
@@ -402,7 +405,7 @@ export async function addWarrantyInEntry(formData: FormData) {
         itemName: product.name,
         party,
         receivedDate: sheet.sheetDate,
-        quantity: 1,
+        quantity,
         invoiceDate: toSheetDate(invoiceDate),
         rmaNumber,
         amountPaisa,
@@ -538,7 +541,7 @@ export async function editPendingWarrantyEntry(formData: FormData) {
     if (existing.sourceWarrantyInId) {
       await tx.warrantyInEntry.update({
         where: { id: existing.sourceWarrantyInId },
-        data: { productId: product.id, itemName: product.name, party, invoiceDate: validInvoiceDate, rmaNumber, amountPaisa },
+        data: { productId: product.id, itemName: product.name, party, invoiceDate: validInvoiceDate, rmaNumber, quantity, amountPaisa },
       });
     }
     await recalculateProduct(existing.productId, tx);
@@ -778,11 +781,12 @@ export async function editWarrantyInEntry(formData: FormData) {
   const invoiceNumber = String(formData.get("invoiceNumber") ?? "").trim();
   const invoiceDate = parseDateField(String(formData.get("invoiceDate") ?? ""));
   const rmaNumber = String(formData.get("rmaNumber") ?? "").trim();
+  const quantity = Number(formData.get("quantity"));
   const amountPaisa = parsePaisa(formData.get("amount"));
   const driveStatus = String(formData.get("driveStatus") ?? "");
   const sheet = await getEditableSheet(formData, dateKey, "today-warranty-in");
   const product = await prisma.product.findFirst({ where: { id: String(formData.get("productId") ?? ""), isActive: true }, select: { id: true, name: true } });
-  if (!id || !party || !invoiceNumber || !rmaNumber || !invoiceDate || amountPaisa === null || !["OK", "FAULTY_FOR_LAB"].includes(driveStatus) || !product) {
+  if (!id || !party || !invoiceNumber || !rmaNumber || !invoiceDate || !Number.isSafeInteger(quantity) || quantity < 1 || amountPaisa === null || !["OK", "FAULTY_FOR_LAB"].includes(driveStatus) || !product) {
     redirect(entryReturnPath(formData, dateKey, "today-warranty-in", "warranty-in"));
   }
   const existing = await prisma.warrantyInEntry.findFirst({ where: { id, stockSheetId: sheet.id }, select: { productId: true } });
@@ -793,11 +797,11 @@ export async function editWarrantyInEntry(formData: FormData) {
     await ensureParty(tx, party);
     await tx.warrantyInEntry.update({
       where: { id },
-      data: { productId: product.id, itemName: product.name, party, invoiceNumber, invoiceDate, rmaNumber, driveStatus, amountPaisa },
+      data: { productId: product.id, itemName: product.name, party, invoiceNumber, invoiceDate, rmaNumber, driveStatus, quantity, amountPaisa },
     });
     const linked = await tx.pendingWarrantyEntry.findUnique({ where: { sourceWarrantyInId: id }, select: { id: true, billBackDate: true } });
     if (linked) {
-      await tx.pendingWarrantyEntry.update({ where: { id: linked.id }, data: { productId: product.id, itemName: product.name, party, invoiceDate, rmaNumber, amountPaisa } });
+      await tx.pendingWarrantyEntry.update({ where: { id: linked.id }, data: { productId: product.id, itemName: product.name, party, invoiceDate, rmaNumber, quantity, amountPaisa } });
       if (linked.billBackDate) await recalculateBillBackTotal(linked.billBackDate, tx);
     }
     await recalculateProduct(existing.productId, tx);
