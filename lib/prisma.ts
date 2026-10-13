@@ -24,7 +24,7 @@ function createPrismaClient() {
     connectionTimeoutMillis: 5_000,
   });
 
-  return new PrismaClient({ adapter });
+  return new PrismaClient({ adapter, transactionOptions: { timeout: 30_000 } });
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();

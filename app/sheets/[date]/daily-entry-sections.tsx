@@ -92,8 +92,9 @@ function PendingClaimField({ pendingWarranties, defaultValue = "", current }: { 
   );
 }
 
-function RowActions({ readOnly, dateKey, returnToEntries, editForm, deleteAction, idName, id, label }: {
+function RowActions({ readOnly, editOnly = false, dateKey, returnToEntries, editForm, deleteAction, idName, id, label }: {
   readOnly: boolean;
+  editOnly?: boolean;
   dateKey: string;
   returnToEntries: boolean;
   editForm: React.ReactNode;
@@ -104,13 +105,13 @@ function RowActions({ readOnly, dateKey, returnToEntries, editForm, deleteAction
 }) {
   return (
     <td data-label={readOnly ? "Status" : "Actions"}>
-      {readOnly ? <span className="claim-status">Saved</span> :
+      {readOnly && !editOnly ? <span className="claim-status">Saved</span> :
       <div className="pending-row-actions">
         <details className="pending-edit-details">
           <summary>Edit</summary>
           {editForm}
         </details>
-        <form action={deleteAction} className="pending-delete-form"><EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} /><input type="hidden" name={idName} value={id} /><button type="submit" aria-label={`Delete ${label}`}>Delete</button></form>
+        {!readOnly && <form action={deleteAction} className="pending-delete-form"><EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} /><input type="hidden" name={idName} value={id} /><button type="submit" aria-label={`Delete ${label}`}>Delete</button></form>}
       </div>}
     </td>
   );
@@ -151,6 +152,7 @@ export function DailyEntrySections({
   showOverall = true,
   returnToEntries = false,
   readOnly = false,
+  editOnly = false,
 }: {
   dateKey: string;
   products: ProductOption[];
@@ -168,6 +170,7 @@ export function DailyEntrySections({
   showOverall?: boolean;
   returnToEntries?: boolean;
   readOnly?: boolean;
+  editOnly?: boolean;
 }) {
   const openPendingCount = pendingWarranties.filter((entry) => !entry.billBackChecked).length;
   return (
@@ -200,7 +203,7 @@ export function DailyEntrySections({
           <div className="entry-table-scroll"><table className="entry-table"><thead><tr><th>PARTY</th><th>ITEM</th><th>QTY.</th><th>ACTIONS</th></tr></thead><tbody>
             {purchases.length ? purchases.map((entry) => <tr key={entry.id}>
               <td data-label="Party">{entry.party}</td><td data-label="Item">{entry.product.name}</td><td data-label="Quantity">{entry.quantity}</td>
-              <RowActions readOnly={readOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deletePurchaseEntry} idName="purchaseId" id={entry.id} label={`purchase of ${entry.product.name}`}
+              <RowActions readOnly={readOnly} editOnly={editOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deletePurchaseEntry} idName="purchaseId" id={entry.id} label={`purchase of ${entry.product.name}`}
                 editForm={<form className="pending-edit-form" action={editPurchaseEntry}>
                   <EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} />
                   <input type="hidden" name="purchaseId" value={entry.id} />
@@ -224,7 +227,7 @@ export function DailyEntrySections({
           <div className="entry-table-scroll"><table className="entry-table"><thead><tr><th>INVOICE NUMBER</th><th>ITEM SOLD</th><th>QTY.</th><th>PRICE / UNIT</th><th>DATE</th><th>ACTIONS</th></tr></thead><tbody>
             {invoices.length ? invoices.map((entry) => <tr key={entry.id}>
               <td data-label="Invoice number" className="entry-ref">{entry.invoiceNumber}</td><td data-label="Item sold">{entry.itemName}</td><td data-label="Quantity">{entry.quantity}</td><td data-label="Price / unit">{formatMoney(entry.pricePaisa)}</td><td data-label="Date">{formatSheetDate(new Date(`${dateKey}T00:00:00.000Z`), dateOptions)}</td>
-              <RowActions readOnly={readOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deleteInvoiceEntry} idName="invoiceId" id={entry.id} label={`invoice ${entry.invoiceNumber}`}
+              <RowActions readOnly={readOnly} editOnly={editOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deleteInvoiceEntry} idName="invoiceId" id={entry.id} label={`invoice ${entry.invoiceNumber}`}
                 editForm={<form className="pending-edit-form" action={editInvoiceEntry}>
                   <EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} />
                   <input type="hidden" name="invoiceId" value={entry.id} />
@@ -258,7 +261,7 @@ export function DailyEntrySections({
           <div className="entry-table-scroll"><table className="entry-table"><thead><tr><th>PARTY</th><th>ITEM</th><th>INV. NO.</th><th>DATE OF INV.</th><th>RMA #</th><th>DRIVE STATUS</th><th>PENDING AMOUNT</th><th>ACTIONS</th></tr></thead><tbody>
             {warrantyIns.length ? warrantyIns.map((entry) => <tr key={entry.id}>
               <td data-label="Party">{entry.party}</td><td data-label="Item">{entry.itemName}</td><td data-label="Invoice number" className="entry-ref">{entry.invoiceNumber}</td><td data-label="Invoice date">{formatSheetDate(entry.invoiceDate, dateOptions)}</td><td data-label="RMA number" className="entry-ref">{entry.rmaNumber}</td><td data-label="Drive status"><span className={`entry-status ${entry.driveStatus === "OK" ? "is-ok" : "is-faulty"}`}>{entry.driveStatus === "OK" ? "100% OK" : "Add to Faulty For Lab"}</span></td><td data-label="Pending amount">{formatMoney(entry.amountPaisa)}</td>
-              <RowActions readOnly={readOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deleteWarrantyInEntry} idName="warrantyInId" id={entry.id} label={`warranty in ${entry.rmaNumber}`}
+              <RowActions readOnly={readOnly} editOnly={editOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deleteWarrantyInEntry} idName="warrantyInId" id={entry.id} label={`warranty in ${entry.rmaNumber}`}
                 editForm={<form className="pending-edit-form" action={editWarrantyInEntry}>
                   <EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} />
                   <input type="hidden" name="warrantyInId" value={entry.id} />
@@ -298,7 +301,7 @@ export function DailyEntrySections({
           <div className="entry-table-scroll"><table className="entry-table"><thead><tr><th>PARTY</th><th>ITEM</th><th>CLAIM RMA #</th><th>RMA SLIP #</th><th>DATE</th><th>ACTIONS</th></tr></thead><tbody>
             {warrantyOuts.length ? warrantyOuts.map((entry) => <tr key={entry.id}>
               <td data-label="Party">{entry.party}</td><td data-label="Item">{entry.itemName}</td><td data-label="Claim RMA" className="entry-ref">{entry.pendingWarrantyEntry?.rmaNumber ?? ""}</td><td data-label="RMA slip" className="entry-ref">{entry.rmaSlipNumber}</td><td data-label="Date">{formatSheetDate(new Date(`${dateKey}T00:00:00.000Z`), dateOptions)}</td>
-              <RowActions readOnly={readOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deleteWarrantyOutEntry} idName="warrantyOutId" id={entry.id} label={`warranty out slip ${entry.rmaSlipNumber}`}
+              <RowActions readOnly={readOnly} editOnly={editOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deleteWarrantyOutEntry} idName="warrantyOutId" id={entry.id} label={`warranty out slip ${entry.rmaSlipNumber}`}
                 editForm={<form className="pending-edit-form" action={editWarrantyOutEntry}>
                   <EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} />
                   <input type="hidden" name="warrantyOutId" value={entry.id} />
@@ -325,7 +328,7 @@ export function DailyEntrySections({
           <div className="entry-table-scroll"><table className="entry-table"><thead><tr><th>ITEM</th><th>QTY.</th><th>ACTIONS</th></tr></thead><tbody>
             {labDeadEntries.length ? labDeadEntries.map((entry) => <tr key={entry.id}>
               <td data-label="Item">{entry.product.name}</td><td data-label="Quantity">{entry.quantity}</td>
-              <RowActions readOnly={readOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deleteLabDeadEntry} idName="labDeadId" id={entry.id} label={`lab dead ${entry.product.name}`}
+              <RowActions readOnly={readOnly} editOnly={editOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deleteLabDeadEntry} idName="labDeadId" id={entry.id} label={`lab dead ${entry.product.name}`}
                 editForm={<form className="pending-edit-form" action={editLabDeadEntry}>
                   <EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} />
                   <input type="hidden" name="labDeadId" value={entry.id} />
@@ -349,9 +352,9 @@ export function DailyEntrySections({
             {pendingWarranties.length ? pendingWarranties.map((entry) => <tr key={entry.id}>
               <td data-label="Item">{entry.itemName}</td><td data-label="Party">{entry.party}</td><td data-label="Received date">{formatSheetDate(entry.receivedDate, dateOptions)}</td><td data-label="Quantity">{entry.quantity}</td><td data-label="Invoice date">{formatSheetDate(entry.invoiceDate, dateOptions)}</td><td data-label="RMA number" className="entry-ref">{entry.rmaNumber}</td><td data-label="Amount">{formatMoney(entry.amountPaisa)}</td>
               <td data-label={readOnly ? "Status" : "Actions"}>
-                {readOnly ? <span className={`claim-status ${entry.billBackChecked ? "is-checked" : ""}`}>{entry.billBackChecked ? "Bill back checked" : "Pending"}</span> :
+                {readOnly && !editOnly ? <span className={`claim-status ${entry.billBackChecked ? "is-checked" : ""}`}>{entry.billBackChecked ? "Bill back checked" : "Pending"}</span> :
                 <div className="pending-row-actions">
-                  <form action={setPendingWarrantyBillBackCheck} className="billback-check-form"><EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} /><input type="hidden" name="pendingWarrantyId" value={entry.id} /><label><input type="checkbox" name="billBackChecked" value="true" defaultChecked={entry.billBackChecked} /><span>Bill back</span></label><button type="submit">Save</button></form>
+                  {!readOnly && <form action={setPendingWarrantyBillBackCheck} className="billback-check-form"><EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} /><input type="hidden" name="pendingWarrantyId" value={entry.id} /><label><input type="checkbox" name="billBackChecked" value="true" defaultChecked={entry.billBackChecked} /><span>Bill back</span></label><button type="submit">Save</button></form>}
                   <details className="pending-edit-details">
                     <summary>Edit</summary>
                     <form className="pending-edit-form" action={editPendingWarrantyEntry}>

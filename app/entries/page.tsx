@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createTodayStockSheet } from "@/app/actions/stock-sheets";
 import { prisma } from "@/lib/prisma";
-import { formatSheetDate, getBusinessDateKey, toSheetDate } from "@/lib/stock-sheet-date";
+import { formatSheetDate, getBusinessDateKey, getPreviousBusinessDateKey, toSheetDate } from "@/lib/stock-sheet-date";
 import { comparePartyNames, sortPartyEntries } from "@/lib/party-sort";
 import { DailyEntrySections } from "@/app/sheets/[date]/daily-entry-sections";
 import { CloseStockSheet } from "@/app/sheets/close-stock-sheet";
@@ -38,7 +38,8 @@ export default async function EntriesPage({ searchParams }: { searchParams: Prom
     );
   }
 
-  const [products, parties, pendingWarranties] = await Promise.all([
+  const previousDateKey = getPreviousBusinessDateKey();
+  const [products, parties, pendingWarranties, yesterdaySheet] = await Promise.all([
     prisma.product.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
     prisma.party.findMany({ orderBy: { name: "asc" }, select: { name: true } }),
     prisma.pendingWarrantyEntry.findMany({
@@ -52,6 +53,7 @@ export default async function EntriesPage({ searchParams }: { searchParams: Prom
       },
       orderBy: [{ party: "asc" }, { receivedDate: "asc" }, { itemName: "asc" }],
     }),
+    prisma.stockSheet.findUnique({ where: { sheetDate: toSheetDate(previousDateKey) }, select: { id: true } }),
   ]);
   const sortedPendingWarranties = [...pendingWarranties].sort((left, right) =>
     comparePartyNames(left.party, right.party) ||
@@ -61,6 +63,7 @@ export default async function EntriesPage({ searchParams }: { searchParams: Prom
   const warrantyIns = sortPartyEntries(stockSheet.warrantyIns);
   const warrantyOuts = sortPartyEntries(stockSheet.warrantyOuts);
   const openWarrantyCount = pendingWarranties.filter((entry) => entry.billBackDate?.getTime() !== today.getTime()).length;
+  const editOnly = stockSheet.status === "CLOSED";
   const totalSalesPaisa = stockSheet.invoices.reduce((sum, entry) => sum + entry.quantity * entry.pricePaisa, 0);
 
   const navLinks = [
@@ -78,6 +81,7 @@ export default async function EntriesPage({ searchParams }: { searchParams: Prom
         <div><div className="eyebrow"><span className="eyebrow-rule" />DAILY OPERATIONS <span className="eyebrow-index">/ TODAY</span></div><h1>Today’s entries<span className="heading-period">.</span></h1><p>Add and review today’s sales, warranty, and stock movement entries.</p></div>
         <div className="entries-page-actions">
           <Link className="download-sheet-button" href={`/sheets/${dateKey}`}>Open today’s stock sheet <span aria-hidden="true">↗</span></Link>
+          {yesterdaySheet && <Link className="download-sheet-button" href={`/sheets/${previousDateKey}`}>Edit yesterday’s entries <span aria-hidden="true">↗</span></Link>}
           <CloseStockSheet dateKey={dateKey} status={stockSheet.status} closedAt={stockSheet.closedAt} closingPreparedAt={stockSheet.closingPreparedAt} returnToEntries />
         </div>
       </div>
@@ -107,6 +111,7 @@ export default async function EntriesPage({ searchParams }: { searchParams: Prom
           <DailyEntrySections
             dateKey={dateKey}
             readOnly={stockSheet.status === "CLOSED"}
+            editOnly={editOnly}
             products={products}
             parties={parties}
             invoices={stockSheet.invoices}

@@ -11,6 +11,16 @@ export function getBusinessDateKey(date = new Date()) {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
+export function getPreviousBusinessDateKey(date = new Date()) {
+  const previous = toSheetDate(getBusinessDateKey(date));
+  previous.setUTCDate(previous.getUTCDate() - 1);
+  return previous.toISOString().slice(0, 10);
+}
+
+export function isTodayOrYesterday(dateKey: string, date = new Date()) {
+  return dateKey === getBusinessDateKey(date) || dateKey === getPreviousBusinessDateKey(date);
+}
+
 export function toSheetDate(dateKey: string) {
   return new Date(`${dateKey}T00:00:00.000Z`);
 }

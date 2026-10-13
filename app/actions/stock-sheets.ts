@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getBusinessDateKey, toSheetDate } from "@/lib/stock-sheet-date";
+import { getBusinessDateKey, isTodayOrYesterday, toSheetDate } from "@/lib/stock-sheet-date";
 
 const PORTAL_PAGES = new Set(["/m", "/m/sale", "/m/warranty", "/m/warranty/out", "/m/pending", "/m/billback", "/m/lab-dead"]);
 
@@ -74,8 +74,13 @@ async function ensureParty(tx: Prisma.TransactionClient, partyName: string) {
 async function getEditableSheet(formData: FormData, dateKey: string, anchor: string) {
   const sheet = await prisma.stockSheet.findUnique({ where: { sheetDate: toSheetDate(dateKey) }, select: { id: true, sheetDate: true, status: true } });
   if (!sheet) redirect(entryReturnPath(formData, dateKey, anchor, anchor));
-  if (sheet.status !== "OPEN") redirect(entryReturnPath(formData, dateKey, anchor, "closed"));
+  if (sheet.status !== "OPEN" && !isTodayOrYesterday(dateKey)) redirect(entryReturnPath(formData, dateKey, anchor, "closed"));
   return sheet;
+}
+
+async function requireEditableSheet(tx: Prisma.TransactionClient, stockSheetId: string, formData: FormData, dateKey: string, anchor: string) {
+  const sheet = await tx.stockSheet.findUnique({ where: { id: stockSheetId }, select: { id: true, sheetDate: true, status: true } });
+  if (!sheet || (sheet.status !== "OPEN" && !isTodayOrYesterday(sheet.sheetDate.toISOString().slice(0, 10)))) redirect(entryReturnPath(formData, dateKey, anchor, "closed"));
 }
 
 function parseDateField(value: string) {
@@ -142,11 +147,18 @@ async function recalculateProduct(productId: string, tx: Prisma.TransactionClien
       where: { id: line.id },
       data: { openingQtyInHand, openingPw, openingFaultyForLab, purchase, warrantyIn, sale, warrantyOut, labDead, faultyForLab, pendingWarranty, closingQtyInHand },
     });
-    await tx.stockSheet.update({ where: { id: sheet.id }, data: { deadOutQuantity: sumFor(labDeadEntries, sheet.id) } });
     previousClosing = closingQtyInHand;
     previousFaulty = faultyForLab;
     isFirst = false;
   }
+}
+
+async function recalculateDeadOutQuantity(stockSheetId: string, tx: Prisma.TransactionClient) {
+  const [total, sheet] = await Promise.all([
+    tx.labDeadEntry.aggregate({ where: { stockSheetId }, _sum: { quantity: true } }),
+    tx.stockSheet.findUnique({ where: { id: stockSheetId }, select: { id: true } }),
+  ]);
+  if (sheet) await tx.stockSheet.update({ where: { id: sheet.id }, data: { deadOutQuantity: total._sum.quantity ?? 0 } });
 }
 
 async function recalculateBillBackTotal(sheetDate: Date, tx: Prisma.TransactionClient) {
@@ -160,6 +172,7 @@ async function recalculateBillBackTotal(sheetDate: Date, tx: Prisma.TransactionC
 async function recalculateSheetClosing(stockSheetId: string, sheetDate: Date, tx: Prisma.TransactionClient) {
   const lines = await tx.stockSheetLine.findMany({ where: { stockSheetId }, select: { productId: true } });
   for (const line of lines) await recalculateProduct(line.productId, tx);
+  await recalculateDeadOutQuantity(stockSheetId, tx);
   await recalculateBillBackTotal(sheetDate, tx);
 }
 
@@ -501,7 +514,7 @@ export async function editPendingWarrantyEntry(formData: FormData) {
   if (!id || !sheet || !product || !party || invalidDate(receivedDateKey, receivedDate) || invalidDate(invoiceDateKey, invoiceDate) || !receivedDate || receivedDate > sheet.sheetDate || !Number.isSafeInteger(quantity) || quantity < 1 || !rmaNumber || amountPaisa === null) {
     redirect(entryReturnPath(formData, dateKey, "pending-warranty", "pending-warranty"));
   }
-  if (sheet.status !== "OPEN") redirect(entryReturnPath(formData, dateKey, "pending-warranty", "closed"));
+  if (sheet.status !== "OPEN" && !isTodayOrYesterday(dateKey)) redirect(entryReturnPath(formData, dateKey, "pending-warranty", "closed"));
   const validReceivedDate = receivedDate as Date;
   const validInvoiceDate = invoiceDate as Date;
   const existing = await prisma.pendingWarrantyEntry.findFirst({
@@ -516,7 +529,7 @@ export async function editPendingWarrantyEntry(formData: FormData) {
   if (!existing) redirect(entryReturnPath(formData, dateKey, "pending-warranty", "pending-warranty"));
 
   await prisma.$transaction(async (tx) => {
-    await requireOpenSheet(tx, sheet.id, formData, dateKey, "pending-warranty");
+    await requireEditableSheet(tx, sheet.id, formData, dateKey, "pending-warranty");
     await ensureParty(tx, party);
     await tx.pendingWarrantyEntry.update({
       where: { id },
@@ -531,7 +544,7 @@ export async function editPendingWarrantyEntry(formData: FormData) {
     await recalculateProduct(existing.productId, tx);
     if (existing.productId !== product.id) await recalculateProduct(product.id, tx);
     await recalculateBillBackTotal(sheet.sheetDate, tx);
-  });
+  }, { timeout: 30_000 });
 
   refreshSheet(dateKey);
   redirect(entryReturnPath(formData, dateKey, "pending-warranty"));
@@ -673,6 +686,7 @@ export async function addLabDeadEntries(formData: FormData) {
       await tx.labDeadEntry.create({ data: { stockSheetId: sheet.id, ...entry } });
     }
     for (const entry of entries) await recalculateProduct(entry.productId, tx);
+    await recalculateDeadOutQuantity(sheet.id, tx);
   });
 
   refreshSheet(dateKey);
@@ -688,15 +702,17 @@ export async function editInvoiceEntry(formData: FormData) {
   const sheet = await getEditableSheet(formData, dateKey, "invoices");
   const product = await prisma.product.findFirst({ where: { id: String(formData.get("productId") ?? ""), isActive: true }, select: { id: true, name: true } });
   if (!id || !invoiceNumber || !product || !Number.isSafeInteger(quantity) || quantity < 1 || pricePaisa === null) redirect(entryReturnPath(formData, dateKey, "invoices", "invoice"));
-  const existing = await prisma.invoiceEntry.findFirst({ where: { id, stockSheetId: sheet.id }, select: { productId: true } });
+  const existing = await prisma.invoiceEntry.findFirst({ where: { id, stockSheetId: sheet.id }, select: { productId: true, quantity: true } });
   if (!existing) redirect(entryReturnPath(formData, dateKey, "invoices", "invoice"));
 
   await prisma.$transaction(async (tx) => {
-    await requireOpenSheet(tx, sheet.id, formData, dateKey, "invoices");
+    await requireEditableSheet(tx, sheet.id, formData, dateKey, "invoices");
     await tx.invoiceEntry.update({ where: { id }, data: { productId: product.id, itemName: product.name, invoiceNumber, quantity, pricePaisa } });
-    await recalculateProduct(existing.productId, tx);
-    if (existing.productId !== product.id) await recalculateProduct(product.id, tx);
-  });
+    if (existing.productId !== product.id || existing.quantity !== quantity) {
+      await recalculateProduct(existing.productId, tx);
+      if (existing.productId !== product.id) await recalculateProduct(product.id, tx);
+    }
+  }, { timeout: 30_000 });
   refreshSheet(dateKey);
   redirect(entryReturnPath(formData, dateKey, "invoices"));
 }
@@ -729,12 +745,12 @@ export async function editPurchaseEntry(formData: FormData) {
   if (!existing) redirect(entryReturnPath(formData, dateKey, "purchases", "purchase"));
 
   await prisma.$transaction(async (tx) => {
-    await requireOpenSheet(tx, sheet.id, formData, dateKey, "purchases");
+    await requireEditableSheet(tx, sheet.id, formData, dateKey, "purchases");
     await ensureParty(tx, party);
     await tx.purchaseEntry.update({ where: { id }, data: { productId: product.id, party, quantity } });
     await recalculateProduct(existing.productId, tx);
     if (existing.productId !== product.id) await recalculateProduct(product.id, tx);
-  });
+  }, { timeout: 30_000 });
   refreshSheet(dateKey);
   redirect(entryReturnPath(formData, dateKey, "purchases"));
 }
@@ -773,7 +789,7 @@ export async function editWarrantyInEntry(formData: FormData) {
   if (!existing) redirect(entryReturnPath(formData, dateKey, "today-warranty-in", "warranty-in"));
 
   await prisma.$transaction(async (tx) => {
-    await requireOpenSheet(tx, sheet.id, formData, dateKey, "today-warranty-in");
+    await requireEditableSheet(tx, sheet.id, formData, dateKey, "today-warranty-in");
     await ensureParty(tx, party);
     await tx.warrantyInEntry.update({
       where: { id },
@@ -786,7 +802,7 @@ export async function editWarrantyInEntry(formData: FormData) {
     }
     await recalculateProduct(existing.productId, tx);
     if (existing.productId !== product.id) await recalculateProduct(product.id, tx);
-  });
+  }, { timeout: 30_000 });
   refreshSheet(dateKey);
   redirect(entryReturnPath(formData, dateKey, "today-warranty-in"));
 }
@@ -836,7 +852,7 @@ export async function editWarrantyOutEntry(formData: FormData) {
   if (!existing || !pending) redirect(entryReturnPath(formData, dateKey, "today-warranty-out", "warranty-out"));
 
   await prisma.$transaction(async (tx) => {
-    await requireOpenSheet(tx, sheet.id, formData, dateKey, "today-warranty-out");
+    await requireEditableSheet(tx, sheet.id, formData, dateKey, "today-warranty-out");
     await tx.warrantyOutEntry.update({ where: { id }, data: { pendingWarrantyEntryId: pending.id, rmaSlipNumber, productId: pending.productId, itemName: pending.itemName, party: pending.party } });
     if (existing.pendingWarrantyEntryId && existing.pendingWarrantyEntryId !== pending.id) {
       await tx.pendingWarrantyEntry.update({ where: { id: existing.pendingWarrantyEntryId }, data: { resolvedDate: null } });
@@ -844,7 +860,7 @@ export async function editWarrantyOutEntry(formData: FormData) {
     await tx.pendingWarrantyEntry.update({ where: { id: pending.id }, data: { resolvedDate: sheet.sheetDate } });
     await recalculateProduct(existing.productId, tx);
     if (existing.productId !== pending.productId) await recalculateProduct(pending.productId, tx);
-  });
+  }, { timeout: 30_000 });
   refreshSheet(dateKey);
   redirect(entryReturnPath(formData, dateKey, "today-warranty-out"));
 }
@@ -883,11 +899,12 @@ export async function editLabDeadEntry(formData: FormData) {
   }
 
   await prisma.$transaction(async (tx) => {
-    await requireOpenSheet(tx, sheet.id, formData, dateKey, "lab-dead");
+    await requireEditableSheet(tx, sheet.id, formData, dateKey, "lab-dead");
     await tx.labDeadEntry.update({ where: { id }, data: { productId: product.id, quantity } });
     await recalculateProduct(existing.productId, tx);
     if (existing.productId !== product.id) await recalculateProduct(product.id, tx);
-  });
+    await recalculateDeadOutQuantity(sheet.id, tx);
+  }, { timeout: 30_000 });
   refreshSheet(dateKey);
   redirect(entryReturnPath(formData, dateKey, "lab-dead"));
 }
@@ -903,6 +920,7 @@ export async function deleteLabDeadEntry(formData: FormData) {
     await requireOpenSheet(tx, sheet.id, formData, dateKey, "lab-dead");
     await tx.labDeadEntry.delete({ where: { id } });
     await recalculateProduct(existing.productId, tx);
+    await recalculateDeadOutQuantity(sheet.id, tx);
   });
   refreshSheet(dateKey);
   redirect(entryReturnPath(formData, dateKey, "lab-dead"));

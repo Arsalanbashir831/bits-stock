@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatSheetDate, toSheetDate } from "@/lib/stock-sheet-date";
+import { formatSheetDate, getBusinessDateKey, getPreviousBusinessDateKey, isTodayOrYesterday, toSheetDate } from "@/lib/stock-sheet-date";
 import { comparePartyNames, sortPartyEntries } from "@/lib/party-sort";
 import { DailyEntrySections } from "./daily-entry-sections";
 import { CloseStockSheet } from "../close-stock-sheet";
@@ -74,7 +74,8 @@ export default async function StockSheetPage({
 
   if (!stockSheet) notFound();
 
-  const [pendingWarranties, products, parties] = await Promise.all([prisma.pendingWarrantyEntry.findMany({
+  const previousDateKey = getPreviousBusinessDateKey();
+  const [pendingWarranties, products, parties, yesterdaySheet] = await Promise.all([prisma.pendingWarrantyEntry.findMany({
     where: {
       receivedDate: { lt: sheetDate },
       stockSheet: { sheetDate: { lte: sheetDate } },
@@ -88,7 +89,7 @@ export default async function StockSheetPage({
     where: { isActive: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: { id: true, name: true },
-  }), prisma.party.findMany({ orderBy: { name: "asc" }, select: { name: true } })]);
+  }), prisma.party.findMany({ orderBy: { name: "asc" }, select: { name: true } }), date === getBusinessDateKey() ? prisma.stockSheet.findUnique({ where: { sheetDate: toSheetDate(previousDateKey) }, select: { sheetDate: true } }) : Promise.resolve(null)]);
   const sortedPendingWarranties = [...pendingWarranties].sort((left, right) =>
     comparePartyNames(left.party, right.party) ||
     left.receivedDate.getTime() - right.receivedDate.getTime() ||
@@ -108,6 +109,7 @@ export default async function StockSheetPage({
     fields.map(([key]) => [key, lines.reduce((sum, line) => sum + line[key], 0)]),
   ) as Record<FieldKey, number>;
   const showClosing = stockSheet.status === "CLOSED" || stockSheet.closingPreparedAt !== null;
+  const editOnly = stockSheet.status === "CLOSED" && isTodayOrYesterday(date);
   const totalSalesPaisa = stockSheet.invoices.reduce(
     (sum, entry) => sum + entry.quantity * entry.pricePaisa,
     0,
@@ -130,6 +132,7 @@ export default async function StockSheetPage({
           <a className="download-sheet-button" href={`/api/sheets/${date}/pdf`}>
             <span aria-hidden="true">↓</span> Download stock sheet PDF
           </a>
+          {yesterdaySheet && <Link className="download-sheet-button" href={`/sheets/${previousDateKey}`}>Edit yesterday’s entries <span aria-hidden="true">↗</span></Link>}
           <CloseStockSheet dateKey={date} status={stockSheet.status} closedAt={stockSheet.closedAt} closingPreparedAt={stockSheet.closingPreparedAt} />
           <div className="report-date-stamp"><span>DATED</span><strong>{formatSheetDate(stockSheet.sheetDate, { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</strong></div>
         </div>
@@ -185,6 +188,7 @@ export default async function StockSheetPage({
       <DailyEntrySections
         dateKey={date}
         readOnly={stockSheet.status === "CLOSED"}
+        editOnly={editOnly}
         products={products}
         invoices={stockSheet.invoices}
         parties={parties}
