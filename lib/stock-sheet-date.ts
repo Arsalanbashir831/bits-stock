@@ -14,10 +14,11 @@ export function getBusinessDateKey(date = new Date()) {
 export function getPreviousBusinessDateKey(date = new Date()) {
   const previous = toSheetDate(getBusinessDateKey(date));
   previous.setUTCDate(previous.getUTCDate() - 1);
+  if (previous.getUTCDay() === 0) previous.setUTCDate(previous.getUTCDate() - 1);
   return previous.toISOString().slice(0, 10);
 }
 
-export function isTodayOrYesterday(dateKey: string, date = new Date()) {
+export function isTodayOrPreviousStockDay(dateKey: string, date = new Date()) {
   return dateKey === getBusinessDateKey(date) || dateKey === getPreviousBusinessDateKey(date);
 }
 

@@ -29,12 +29,12 @@ export default async function EmployeeSalePage({
     <>
       <div className="m-head">
         <div className="m-kicker">Sale entry · {formatSheetDate(today, { day: "2-digit", month: "short", year: "numeric" })}</div>
-        <h1>Add invoice / sale</h1>
-        <p>Each sale reduces the item’s quantity in hand on today’s sheet.</p>
+        <h1>Record a sale</h1>
+        <p>Enter the invoice number, item, quantity, and price. The sale reduces stock in hand.</p>
       </div>
 
       {notice && <div className={`m-notice ${notice.tone}`}>{notice.text}</div>}
-      {readOnly && sheet && <div className="m-notice error">Today’s stock sheet is closed. New entries are locked.</div>}
+      {readOnly && sheet && <div className="m-notice">Today’s sheet is closed. You can edit a saved sale below, but cannot add or delete one.</div>}
       {!sheet && <div className="m-notice error">No stock sheet for today yet. Ask the office to create it first.</div>}
 
       <form className="m-card m-form" action={addInvoiceEntry}>
@@ -63,7 +63,7 @@ export default async function EmployeeSalePage({
       </form>
 
       <div className="m-card">
-        <div className="m-card-title"><span>Today’s sales</span><span className="m-kicker">{String(sheet?.invoices.length ?? 0).padStart(2, "0")}</span></div>
+        <div className="m-card-title"><span>Today’s sales · tap to fix a mistake</span><span className="m-kicker">{String(sheet?.invoices.length ?? 0).padStart(2, "0")}</span></div>
         {sheet?.invoices.length ? (
           <div className="m-rows">
             {sheet.invoices.map((entry) => (
@@ -75,8 +75,8 @@ export default async function EmployeeSalePage({
                   </div>
                   <span className="m-row-value">{formatPaisa(entry.quantity * entry.pricePaisa)}</span>
                 </div>
-                {!readOnly && <details className="m-entry-edit">
-                  <summary>Edit or delete</summary>
+                {sheet && <details className="m-entry-edit">
+                  <summary>Edit entry</summary>
                   <form className="m-form m-edit-form" action={editInvoiceEntry}>
                     <input type="hidden" name="sheetDate" value={dateKey} />
                     <input type="hidden" name="returnTo" value="/m/sale" />
@@ -87,12 +87,12 @@ export default async function EmployeeSalePage({
                     <div className="m-field"><label htmlFor={`sale-price-${entry.id}`}>Price per unit · PKR</label><input id={`sale-price-${entry.id}`} name="price" type="number" min="0" step="0.01" required defaultValue={(entry.pricePaisa / 100).toFixed(2)} /></div>
                     <button className="m-submit" type="submit">Save changes</button>
                   </form>
-                  <DeleteEntryForm action={deleteInvoiceEntry}>
+                  {!readOnly && <DeleteEntryForm action={deleteInvoiceEntry}>
                     <input type="hidden" name="sheetDate" value={dateKey} />
                     <input type="hidden" name="returnTo" value="/m/sale" />
                     <input type="hidden" name="invoiceId" value={entry.id} />
                     <button className="m-delete-button" type="submit">Delete sale</button>
-                  </DeleteEntryForm>
+                  </DeleteEntryForm>}
                 </details>}
               </div>
             ))}

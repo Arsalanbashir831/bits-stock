@@ -32,14 +32,21 @@ export default async function EmployeeTodayPage({
   return (
     <>
       <div className="m-head">
-        <h1>{formatSheetDate(today, { weekday: "long", day: "2-digit", month: "long" })}</h1>
-        <p>{readOnly ? "Today’s report is closed — records are saved." : sheet ? "Today’s report is open for entries." : "Today’s report has not been created yet."}</p>
+        <h1>Today’s work</h1>
+        <p>{formatSheetDate(today, { weekday: "long", day: "2-digit", month: "long" })}</p>
       </div>
 
       {notice && <div className={`m-notice ${notice.tone}`}>{notice.text}</div>}
 
       {sheet ? (
         <>
+          <div className={`m-notice ${readOnly ? "" : "success"}`}>{readOnly ? "Today’s sheet is closed. You can still correct today’s saved entries." : "Today’s sheet is open. Add your work below."}</div>
+          <div className="m-actions m-quick-actions">
+            <Link className="m-button" href="/m/sale"><span>Record a sale</span><small>1 →</small></Link>
+            <Link className="m-button" href="/m/warranty"><span>Receive warranty item</span><small>2 →</small></Link>
+            <Link className="m-button m-secondary" href="/m/warranty/out"><span>Give replacement</span><small>3 →</small></Link>
+            <Link className="m-button m-secondary" href="/m/more"><span>Other work</span><small>→</small></Link>
+          </div>
           <div className="m-stats">
             <div className="m-stat"><span>Sale entries</span><strong>{String(sheet.invoices.length).padStart(2, "0")}</strong></div>
             <div className="m-stat"><span>Sales · PKR</span><strong>{formatPaisa(totalSalesPaisa)}</strong></div>
@@ -58,17 +65,13 @@ export default async function EmployeeTodayPage({
             </div>
           </div>
 
-          <div className="m-actions">
-            <Link className="m-button" href="/m/sale"><span>Add invoice / sale</span><small>↗</small></Link>
-            <Link className="m-button" href="/m/warranty"><span>Add warranty in / out</span><small>↗</small></Link>
-            <Link className="m-button m-secondary" href={`/api/sheets/${dateKey}/pdf`}><span>Download stock report</span><small>PDF</small></Link>
-          </div>
+          <div className="m-notice">Made a mistake? Open Sales or Warranty and tap “Edit entry” below the saved record. Delete is available while the sheet is open.</div>
+          <Link className="m-button m-secondary" href={`/api/sheets/${dateKey}/pdf`}><span>Download stock report</span><small>PDF</small></Link>
         </>
       ) : (
         <div className="m-empty">No stock sheet exists for today yet. Ask the office to create it before adding entries.</div>
       )}
 
-      <div className="m-notice">Employee portal · entries go straight into today’s stock sheet.</div>
     </>
   );
 }

@@ -7,8 +7,9 @@ export function formatPaisa(paisa: number) {
 
 export function portalNotice(query: { [key: string]: string | string[] | undefined }): { tone: "error" | "success"; text: string } | null {
   if (query.added) return { tone: "success", text: "Changes saved to today’s stock sheet." };
-  if (query.error === "closed") return { tone: "error", text: "Today’s stock sheet is closed. Entries are read-only." };
+  if (query.error === "closed") return { tone: "error", text: "This action is locked for the selected stock day. Open today’s saved entry to correct it, or ask the office for help." };
   if (query.error === "date") return { tone: "error", text: "Today’s stock sheet date is invalid. Reload the page and try again." };
+  if (query.error === "entry-date") return { tone: "error", text: "Enter the date as day-month-year, for example 10-7-26. Check that the day and month are real." };
   if (query.error === "lab-dead") return { tone: "error", text: "Select at least one faulty item and keep each quantity within its available stock." };
   if (query.error === "warranty-in-linked") return { tone: "error", text: "This Warranty IN is already resolved or billed back. Keep the record and edit it instead." };
   if (query.error) return { tone: "error", text: "Some details are missing or invalid. Check the form and try again." };

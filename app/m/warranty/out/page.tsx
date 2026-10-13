@@ -50,7 +50,7 @@ export default async function EmployeeWarrantyOutPage({
       <PortalTabs current="/m/warranty/out" tabs={[{ href: "/m/warranty", label: "Warranty in" }, { href: "/m/warranty/out", label: "Warranty out" }]} />
 
       {notice && <div className={`m-notice ${notice.tone}`}>{notice.text}</div>}
-      {readOnly && sheet && <div className="m-notice error">Today’s stock sheet is closed. New entries are locked.</div>}
+      {readOnly && sheet && <div className="m-notice">Today’s sheet is closed. You can edit a saved entry below, but cannot add or delete one.</div>}
       {!sheet && <div className="m-notice error">No stock sheet for today yet. Ask the office to create it first.</div>}
 
       <WarrantyOutForm
@@ -75,8 +75,8 @@ export default async function EmployeeWarrantyOutPage({
                     <span>{entry.itemName} · slip {entry.rmaSlipNumber} · RMA {entry.pendingWarrantyEntry?.rmaNumber ?? "—"}</span>
                   </div>
                 </div>
-                {!readOnly && <details className="m-entry-edit">
-                  <summary>Edit or delete</summary>
+                {sheet && <details className="m-entry-edit">
+                  <summary>Edit entry</summary>
                   {entry.pendingWarrantyEntry && <form className="m-form m-edit-form" action={editWarrantyOutEntry}>
                     <input type="hidden" name="sheetDate" value={dateKey} />
                     <input type="hidden" name="returnTo" value="/m/warranty/out" />
@@ -85,12 +85,12 @@ export default async function EmployeeWarrantyOutPage({
                     <div className="m-field"><label htmlFor={`wo-slip-${entry.id}`}>RMA slip number</label><input id={`wo-slip-${entry.id}`} name="rmaSlipNumber" required defaultValue={entry.rmaSlipNumber} /></div>
                     <button className="m-submit" type="submit">Save changes</button>
                   </form>}
-                  <DeleteEntryForm action={deleteWarrantyOutEntry}>
+                  {!readOnly && <DeleteEntryForm action={deleteWarrantyOutEntry}>
                     <input type="hidden" name="sheetDate" value={dateKey} />
                     <input type="hidden" name="returnTo" value="/m/warranty/out" />
                     <input type="hidden" name="warrantyOutId" value={entry.id} />
                     <button className="m-delete-button" type="submit">Delete warranty out</button>
-                  </DeleteEntryForm>
+                  </DeleteEntryForm>}
                 </details>}
               </div>
             ))}

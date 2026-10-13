@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getBusinessDateKey, isTodayOrYesterday, toSheetDate } from "@/lib/stock-sheet-date";
+import { parseEntryDate } from "@/lib/entry-date";
+import { recalculateBillBackTotal, recalculateDeadOutQuantity, recalculateProduct, recalculateSheetClosing } from "@/lib/server/stock-balances";
+import { getBusinessDateKey, isTodayOrPreviousStockDay, toSheetDate } from "@/lib/stock-sheet-date";
 
 const PORTAL_PAGES = new Set(["/m", "/m/sale", "/m/warranty", "/m/warranty/out", "/m/pending", "/m/billback", "/m/lab-dead"]);
 
@@ -74,19 +76,13 @@ async function ensureParty(tx: Prisma.TransactionClient, partyName: string) {
 async function getEditableSheet(formData: FormData, dateKey: string, anchor: string) {
   const sheet = await prisma.stockSheet.findUnique({ where: { sheetDate: toSheetDate(dateKey) }, select: { id: true, sheetDate: true, status: true } });
   if (!sheet) redirect(entryReturnPath(formData, dateKey, anchor, anchor));
-  if (sheet.status !== "OPEN" && !isTodayOrYesterday(dateKey)) redirect(entryReturnPath(formData, dateKey, anchor, "closed"));
+  if (sheet.status !== "OPEN" && !isTodayOrPreviousStockDay(dateKey)) redirect(entryReturnPath(formData, dateKey, anchor, "closed"));
   return sheet;
 }
 
 async function requireEditableSheet(tx: Prisma.TransactionClient, stockSheetId: string, formData: FormData, dateKey: string, anchor: string) {
   const sheet = await tx.stockSheet.findUnique({ where: { id: stockSheetId }, select: { id: true, sheetDate: true, status: true } });
-  if (!sheet || (sheet.status !== "OPEN" && !isTodayOrYesterday(sheet.sheetDate.toISOString().slice(0, 10)))) redirect(entryReturnPath(formData, dateKey, anchor, "closed"));
-}
-
-function parseDateField(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const date = toSheetDate(value);
-  return date.toISOString().slice(0, 10) === value ? date : null;
+  if (!sheet || (sheet.status !== "OPEN" && !isTodayOrPreviousStockDay(sheet.sheetDate.toISOString().slice(0, 10)))) redirect(entryReturnPath(formData, dateKey, anchor, "closed"));
 }
 
 function refreshSheet(dateKey: string) {
@@ -100,81 +96,6 @@ function refreshSheet(dateKey: string) {
   revalidatePath("/m/billback");
   revalidatePath("/m/lab-dead");
   revalidatePath("/");
-}
-
-async function recalculateProduct(productId: string, tx: Prisma.TransactionClient) {
-  const [sheets, purchases, invoices, warrantyIns, warrantyOuts, labDeadEntries, pendingClaims] = await Promise.all([
-    tx.stockSheet.findMany({ where: { lines: { some: { productId } } }, orderBy: { sheetDate: "asc" }, include: { lines: { where: { productId } } } }),
-    tx.purchaseEntry.findMany({ where: { productId }, select: { stockSheetId: true, quantity: true } }),
-    tx.invoiceEntry.findMany({ where: { productId }, select: { stockSheetId: true, quantity: true } }),
-    tx.warrantyInEntry.findMany({ where: { productId }, select: { stockSheetId: true, driveStatus: true, quantity: true } }),
-    tx.warrantyOutEntry.findMany({ where: { productId }, select: { stockSheetId: true, pendingWarrantyEntry: { select: { quantity: true } } } }),
-    tx.labDeadEntry.findMany({ where: { productId }, select: { stockSheetId: true, quantity: true } }),
-    tx.pendingWarrantyEntry.findMany({ where: { productId }, select: { stockSheet: { select: { sheetDate: true } }, receivedDate: true, quantity: true, resolvedDate: true, billBackDate: true } }),
-  ]);
-  const sumFor = (rows: Array<{ stockSheetId: string; quantity: number }>, sheetId: string) => rows.reduce((sum, row) => sum + (row.stockSheetId === sheetId ? row.quantity : 0), 0);
-  const warrantyInFor = (sheetId: string) => warrantyIns.reduce((sum, row) => sum + (row.stockSheetId === sheetId ? row.quantity : 0), 0);
-  const faultyInFor = (sheetId: string) => warrantyIns.reduce((sum, row) => sum + (row.stockSheetId === sheetId && row.driveStatus === "FAULTY_FOR_LAB" ? row.quantity : 0), 0);
-  const warrantyOutFor = (sheetId: string) => warrantyOuts.reduce((sum, row) => sum + (row.stockSheetId === sheetId ? row.pendingWarrantyEntry?.quantity ?? 1 : 0), 0);
-  let previousClosing = sheets[0]?.lines[0]?.openingQtyInHand ?? 0;
-  let previousFaulty = sheets[0]?.lines[0]?.openingFaultyForLab ?? 0;
-  let isFirst = true;
-
-  // Opening counts only claims received before the day; the closing balance already includes same-day receives.
-  const pendingCountFor = (sheetDate: Date, carried: boolean) => pendingClaims.reduce((sum, claim) => {
-    const received = carried ? claim.receivedDate < sheetDate : claim.receivedDate <= sheetDate;
-    const inScope = claim.stockSheet.sheetDate <= sheetDate && received;
-    const unresolved = claim.resolvedDate === null || (carried ? claim.resolvedDate >= sheetDate : claim.resolvedDate > sheetDate);
-    const notBillBacked = claim.billBackDate === null || (carried ? claim.billBackDate >= sheetDate : claim.billBackDate > sheetDate);
-    return sum + (inScope && unresolved && notBillBacked ? claim.quantity : 0);
-  }, 0);
-
-  for (const sheet of sheets) {
-    const line = sheet.lines[0];
-    if (!line) continue;
-    const openingQtyInHand = isFirst ? line.openingQtyInHand : previousClosing;
-    const openingFaultyForLab = isFirst ? line.openingFaultyForLab : previousFaulty;
-    const openingPw = pendingCountFor(sheet.sheetDate, true);
-    const purchase = sumFor(purchases, sheet.id);
-    const sale = sumFor(invoices, sheet.id);
-    const warrantyIn = warrantyInFor(sheet.id);
-    const warrantyOut = warrantyOutFor(sheet.id);
-    const labDead = sumFor(labDeadEntries, sheet.id);
-    const pendingWarranty = pendingCountFor(sheet.sheetDate, false);
-    const faultyForLab = Math.max(0, openingFaultyForLab + faultyInFor(sheet.id) - labDead);
-    const closingQtyInHand = openingQtyInHand + purchase + warrantyIn - sale - warrantyOut;
-
-    await tx.stockSheetLine.update({
-      where: { id: line.id },
-      data: { openingQtyInHand, openingPw, openingFaultyForLab, purchase, warrantyIn, sale, warrantyOut, labDead, faultyForLab, pendingWarranty, closingQtyInHand },
-    });
-    previousClosing = closingQtyInHand;
-    previousFaulty = faultyForLab;
-    isFirst = false;
-  }
-}
-
-async function recalculateDeadOutQuantity(stockSheetId: string, tx: Prisma.TransactionClient) {
-  const [total, sheet] = await Promise.all([
-    tx.labDeadEntry.aggregate({ where: { stockSheetId }, _sum: { quantity: true } }),
-    tx.stockSheet.findUnique({ where: { id: stockSheetId }, select: { id: true } }),
-  ]);
-  if (sheet) await tx.stockSheet.update({ where: { id: sheet.id }, data: { deadOutQuantity: total._sum.quantity ?? 0 } });
-}
-
-async function recalculateBillBackTotal(sheetDate: Date, tx: Prisma.TransactionClient) {
-  const [entries, sheet] = await Promise.all([
-    tx.pendingWarrantyEntry.findMany({ where: { billBackDate: sheetDate }, select: { amountPaisa: true } }),
-    tx.stockSheet.findUnique({ where: { sheetDate }, select: { id: true } }),
-  ]);
-  if (sheet) await tx.stockSheet.update({ where: { id: sheet.id }, data: { billBackPaisa: entries.reduce((sum, entry) => sum + entry.amountPaisa, 0) } });
-}
-
-async function recalculateSheetClosing(stockSheetId: string, sheetDate: Date, tx: Prisma.TransactionClient) {
-  const lines = await tx.stockSheetLine.findMany({ where: { stockSheetId }, select: { productId: true } });
-  for (const line of lines) await recalculateProduct(line.productId, tx);
-  await recalculateDeadOutQuantity(stockSheetId, tx);
-  await recalculateBillBackTotal(sheetDate, tx);
 }
 
 function closingReturnPath(formData: FormData, dateKey: string, state: "prepared" | "closed") {
@@ -372,13 +293,14 @@ export async function addWarrantyInEntry(formData: FormData) {
   const dateKey = parseSheetDate(formData);
   const party = String(formData.get("party") ?? "").trim();
   const invoiceNumber = String(formData.get("invoiceNumber") ?? "").trim();
-  const invoiceDate = String(formData.get("invoiceDate") ?? "");
+  const invoiceDate = parseEntryDate(String(formData.get("invoiceDate") ?? ""));
   const rmaNumber = String(formData.get("rmaNumber") ?? "").trim();
   const quantity = Number(formData.get("quantity"));
   const amountPaisa = parsePaisa(formData.get("amount"));
   const driveStatus = String(formData.get("driveStatus") ?? "");
   const { sheet, product } = await getEntryContext(formData);
-  if (!party || !invoiceNumber || !rmaNumber || !invoiceDate || !Number.isSafeInteger(quantity) || quantity < 1 || amountPaisa === null || !["OK", "FAULTY_FOR_LAB"].includes(driveStatus)) redirect(entryReturnPath(formData, dateKey, "today-warranty-in", "warranty-in"));
+  if (!invoiceDate) redirect(entryReturnPath(formData, dateKey, "today-warranty-in", "entry-date"));
+  if (!party || !invoiceNumber || !rmaNumber || !Number.isSafeInteger(quantity) || quantity < 1 || amountPaisa === null || !["OK", "FAULTY_FOR_LAB"].includes(driveStatus)) redirect(entryReturnPath(formData, dateKey, "today-warranty-in", "warranty-in"));
 
   await prisma.$transaction(async (tx) => {
     await requireOpenSheet(tx, sheet.id, formData, dateKey, "today-warranty-in");
@@ -390,7 +312,7 @@ export async function addWarrantyInEntry(formData: FormData) {
         party,
         itemName: product.name,
         invoiceNumber,
-        invoiceDate: toSheetDate(invoiceDate),
+        invoiceDate,
         rmaNumber,
         driveStatus,
         quantity,
@@ -406,7 +328,7 @@ export async function addWarrantyInEntry(formData: FormData) {
         party,
         receivedDate: sheet.sheetDate,
         quantity,
-        invoiceDate: toSheetDate(invoiceDate),
+        invoiceDate,
         rmaNumber,
         amountPaisa,
         sourceWarrantyInId: warrantyIn.id,
@@ -465,14 +387,15 @@ export async function addPendingWarrantyEntry(formData: FormData) {
   const party = String(formData.get("party") ?? "").trim();
   const receivedDateKey = String(formData.get("receivedDate") ?? "");
   const invoiceDateKey = String(formData.get("invoiceDate") ?? "");
-  const receivedDate = parseDateField(receivedDateKey);
-  const invoiceDate = parseDateField(invoiceDateKey);
+  const receivedDate = parseEntryDate(receivedDateKey);
+  const invoiceDate = parseEntryDate(invoiceDateKey);
   const quantity = Number(formData.get("quantity"));
   const rmaNumber = String(formData.get("rmaNumber") ?? "").trim();
   const amountPaisa = parsePaisa(formData.get("amount"));
   const { sheet, product } = await getEntryContext(formData);
 
-  if (!party || !receivedDate || receivedDate > sheet.sheetDate || !invoiceDate || !rmaNumber || !Number.isSafeInteger(quantity) || quantity < 1 || amountPaisa === null) {
+  if (!receivedDate || !invoiceDate) redirect(entryReturnPath(formData, dateKey, "pending-warranty", "entry-date"));
+  if (!party || receivedDate > sheet.sheetDate || !rmaNumber || !Number.isSafeInteger(quantity) || quantity < 1 || amountPaisa === null) {
     redirect(entryReturnPath(formData, dateKey, "pending-warranty", "pending-warranty"));
   }
 
@@ -509,17 +432,17 @@ export async function editPendingWarrantyEntry(formData: FormData) {
   const quantity = Number(formData.get("quantity"));
   const rmaNumber = String(formData.get("rmaNumber") ?? "").trim();
   const amountPaisa = parsePaisa(formData.get("amount"));
-  const receivedDate = /^\d{4}-\d{2}-\d{2}$/.test(receivedDateKey) ? toSheetDate(receivedDateKey) : null;
-  const invoiceDate = /^\d{4}-\d{2}-\d{2}$/.test(invoiceDateKey) ? toSheetDate(invoiceDateKey) : null;
+  const receivedDate = parseEntryDate(receivedDateKey);
+  const invoiceDate = parseEntryDate(invoiceDateKey);
   const sheet = await prisma.stockSheet.findUnique({ where: { sheetDate: toSheetDate(dateKey) }, select: { id: true, sheetDate: true, status: true } });
   const product = await prisma.product.findFirst({ where: { id: productId, isActive: true }, select: { id: true, name: true } });
-  const invalidDate = (value: string, date: Date | null) => !date || date.toISOString().slice(0, 10) !== value;
-  if (!id || !sheet || !product || !party || invalidDate(receivedDateKey, receivedDate) || invalidDate(invoiceDateKey, invoiceDate) || !receivedDate || receivedDate > sheet.sheetDate || !Number.isSafeInteger(quantity) || quantity < 1 || !rmaNumber || amountPaisa === null) {
+  if (!receivedDate || !invoiceDate) redirect(entryReturnPath(formData, dateKey, "pending-warranty", "entry-date"));
+  if (!id || !sheet || !product || !party || receivedDate > sheet.sheetDate || !Number.isSafeInteger(quantity) || quantity < 1 || !rmaNumber || amountPaisa === null) {
     redirect(entryReturnPath(formData, dateKey, "pending-warranty", "pending-warranty"));
   }
-  if (sheet.status !== "OPEN" && !isTodayOrYesterday(dateKey)) redirect(entryReturnPath(formData, dateKey, "pending-warranty", "closed"));
-  const validReceivedDate = receivedDate as Date;
-  const validInvoiceDate = invoiceDate as Date;
+  if (sheet.status !== "OPEN" && !isTodayOrPreviousStockDay(dateKey)) redirect(entryReturnPath(formData, dateKey, "pending-warranty", "closed"));
+  const validReceivedDate = receivedDate;
+  const validInvoiceDate = invoiceDate;
   const existing = await prisma.pendingWarrantyEntry.findFirst({
     where: {
       id,
@@ -779,14 +702,15 @@ export async function editWarrantyInEntry(formData: FormData) {
   const id = String(formData.get("warrantyInId") ?? "");
   const party = String(formData.get("party") ?? "").trim();
   const invoiceNumber = String(formData.get("invoiceNumber") ?? "").trim();
-  const invoiceDate = parseDateField(String(formData.get("invoiceDate") ?? ""));
+  const invoiceDate = parseEntryDate(String(formData.get("invoiceDate") ?? ""));
   const rmaNumber = String(formData.get("rmaNumber") ?? "").trim();
   const quantity = Number(formData.get("quantity"));
   const amountPaisa = parsePaisa(formData.get("amount"));
   const driveStatus = String(formData.get("driveStatus") ?? "");
   const sheet = await getEditableSheet(formData, dateKey, "today-warranty-in");
   const product = await prisma.product.findFirst({ where: { id: String(formData.get("productId") ?? ""), isActive: true }, select: { id: true, name: true } });
-  if (!id || !party || !invoiceNumber || !rmaNumber || !invoiceDate || !Number.isSafeInteger(quantity) || quantity < 1 || amountPaisa === null || !["OK", "FAULTY_FOR_LAB"].includes(driveStatus) || !product) {
+  if (!invoiceDate) redirect(entryReturnPath(formData, dateKey, "today-warranty-in", "entry-date"));
+  if (!id || !party || !invoiceNumber || !rmaNumber || !Number.isSafeInteger(quantity) || quantity < 1 || amountPaisa === null || !["OK", "FAULTY_FOR_LAB"].includes(driveStatus) || !product) {
     redirect(entryReturnPath(formData, dateKey, "today-warranty-in", "warranty-in"));
   }
   const existing = await prisma.warrantyInEntry.findFirst({ where: { id, stockSheetId: sheet.id }, select: { productId: true } });

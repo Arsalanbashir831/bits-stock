@@ -81,11 +81,11 @@ export default async function EntriesPage({ searchParams }: { searchParams: Prom
         <div><div className="eyebrow"><span className="eyebrow-rule" />DAILY OPERATIONS <span className="eyebrow-index">/ TODAY</span></div><h1>Today’s entries<span className="heading-period">.</span></h1><p>Add and review today’s sales, warranty, and stock movement entries.</p></div>
         <div className="entries-page-actions">
           <Link className="download-sheet-button" href={`/sheets/${dateKey}`}>Open today’s stock sheet <span aria-hidden="true">↗</span></Link>
-          {yesterdaySheet && <Link className="download-sheet-button" href={`/sheets/${previousDateKey}`}>Edit yesterday’s entries <span aria-hidden="true">↗</span></Link>}
+          {yesterdaySheet && <Link className="download-sheet-button" href={`/sheets/${previousDateKey}`}>Edit previous stock sheet · {formatSheetDate(toSheetDate(previousDateKey), { day: "2-digit", month: "short" })} <span aria-hidden="true">↗</span></Link>}
           <CloseStockSheet dateKey={dateKey} status={stockSheet.status} closedAt={stockSheet.closedAt} closingPreparedAt={stockSheet.closingPreparedAt} returnToEntries />
         </div>
       </div>
-      {query.error && <div className="notice error-notice report-error">{query.error === "closed" ? "This stock sheet is closed. Its entries are read-only." : query.error === "prepare-close" ? "Prepare the closing quantities before confirming the close." : "Some details are missing or invalid. Check the entry form and try again."}</div>}
+      {query.error && <div className="notice error-notice report-error">{query.error === "entry-date" ? "Enter dates as day-month-year, for example 10-7-26 (10 July 2026)." : query.error === "closed" ? "This stock sheet is closed. Its entries are read-only." : query.error === "prepare-close" ? "Prepare the closing quantities before confirming the close." : "Some details are missing or invalid. Check the entry form and try again."}</div>}
       {query.closed && <div className="notice success-notice report-error">Today’s stock sheet is closed and saved in daily history.</div>}
       {query.prepared && <div className="notice success-notice report-error">Closing quantities calculated. Review CLSG QTY, then confirm closing.</div>}
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { addProduct, createTodayStockSheet } from "@/app/actions/stock-sheets";
 import { prisma } from "@/lib/prisma";
-import { formatSheetDate, getBusinessDateKey, toSheetDate } from "@/lib/stock-sheet-date";
+import { formatSheetDate, getBusinessDateKey, getPreviousBusinessDateKey, toSheetDate } from "@/lib/stock-sheet-date";
 
 export const runtime = "nodejs";
 
@@ -28,10 +28,11 @@ export default async function Home({
 }) {
   const dateKey = getBusinessDateKey();
   const todayDate = toSheetDate(dateKey);
-  const [today, history, productCount, params] = await Promise.all([
+  const previousDateKey = getPreviousBusinessDateKey();
+  const [today, history, productCount, pendingCount, previousSheet, params] = await Promise.all([
     prisma.stockSheet.findUnique({
       where: { sheetDate: todayDate },
-      include: { _count: { select: { lines: true } } },
+      include: { _count: { select: { lines: true, invoices: true, warrantyIns: true, warrantyOuts: true, purchases: true, labDeadEntries: true } } },
     }),
     prisma.stockSheet.findMany({
       where: { status: "CLOSED" },
@@ -40,6 +41,8 @@ export default async function Home({
       include: { _count: { select: { lines: true } } },
     }),
     prisma.product.count({ where: { isActive: true } }),
+    prisma.pendingWarrantyEntry.count({ where: { resolvedDate: null, billBackDate: null } }),
+    prisma.stockSheet.findUnique({ where: { sheetDate: toSheetDate(previousDateKey) }, select: { id: true, status: true } }),
     searchParams,
   ]);
   const todayHref = `/sheets/${dateKey}`;
@@ -68,11 +71,10 @@ export default async function Home({
             <span className="nav-glyph entries-glyph" aria-hidden="true"><i /><i /><i /></span>
             <span>Employee portal</span>
           </Link>
-          <a className="side-nav-link disabled" href="#inventory" aria-disabled="true">
+          <Link className="side-nav-link" href="/backup">
             <span className="nav-glyph box-glyph" aria-hidden="true" />
-            <span>Inventory</span>
-            <span className="coming-soon">SOON</span>
-          </a>
+            <span>Backup & restore</span>
+          </Link>
         </nav>
 
         <div className="sidebar-rule" />
@@ -103,9 +105,9 @@ export default async function Home({
         <div className="page-content">
           <div className="page-heading-row">
             <div>
-              <div className="eyebrow"><span className="eyebrow-rule" />INVENTORY CONTROL <span className="eyebrow-index">/ 01</span></div>
+              <div className="eyebrow"><span className="eyebrow-rule" />DAILY STOCK CONTROL <span className="eyebrow-index">/ 01</span></div>
               <h1>Stock sheets<span className="heading-period">.</span></h1>
-              <p className="page-description">One clear record for every business day.</p>
+              <p className="page-description">Open today’s sheet, record work, and review yesterday’s corrections.</p>
             </div>
             <form action={createTodayStockSheet}>
               <button className="primary-button" type="submit" disabled={Boolean(today)}>
@@ -123,7 +125,7 @@ export default async function Home({
             <div className="today-panel-main">
               <div className="panel-kicker"><span className={`panel-status-mark ${today ? "ready" : "pending"}`} />TODAY’S STOCK REPORT</div>
               <h2 id="today-heading">{today ? (todayClosed ? "Today’s report is closed." : "Today’s report is open.") : "Start today’s stock record."}</h2>
-              <p>{today ? (todayClosed ? "The final stock sheet is saved in daily history." : "Add today’s entries, then close the report to save it in history.") : "Create a dated snapshot to begin the daily stock record."}</p>
+              <p>{today ? (todayClosed ? "Saved in daily history. You can still correct today’s entries." : "Add today’s entries, then close the report to save it in history.") : "Create a dated snapshot to begin the daily stock record."}</p>
             </div>
             <div className="today-panel-side">
               <div className="today-panel-date">{formatSheetDate(new Date(), { day: "2-digit", month: undefined, year: undefined })}<span>{formatSheetDate(new Date(), { month: "short", year: "numeric", day: undefined })}</span></div>
@@ -136,6 +138,24 @@ export default async function Home({
               )}
             </div>
             <div className="panel-index">01</div>
+          </section>
+
+          <section className="dashboard-work" aria-label="Stock management shortcuts">
+            <div className="dashboard-work-heading">
+              <div><span className="section-kicker">TODAY AT A GLANCE</span><h2>Manage the day</h2></div>
+              <span className="dashboard-work-date">{formatSheetDate(todayDate, { weekday: "long", day: "2-digit", month: "long" })}</span>
+            </div>
+            <div className="dashboard-metrics">
+              <div><span>Stock items</span><strong>{productCount}</strong></div>
+              <div><span>Entries today</span><strong>{today ? today._count.invoices + today._count.warrantyIns + today._count.warrantyOuts + today._count.purchases + today._count.labDeadEntries : 0}</strong></div>
+              <div><span>Pending warranty</span><strong>{pendingCount}</strong></div>
+            </div>
+            <div className="dashboard-actions">
+              {today ? <Link href={todayHref}><strong>Open stock sheet</strong><span>Review balances and close today’s report →</span></Link> : <form action={createTodayStockSheet}><button type="submit"><strong>Create today’s sheet</strong><span>Start the daily stock record →</span></button></form>}
+              <Link href="/entries"><strong>Manage today’s entries</strong><span>Add, check, and correct records →</span></Link>
+              {previousSheet && <Link href={`/sheets/${previousDateKey}`}><strong>Correct previous stock day</strong><span>Edit yesterday’s recorded entries →</span></Link>}
+              <Link href="/backup"><strong>Backup & restore</strong><span>Download or import the full database →</span></Link>
+            </div>
           </section>
 
           <div className="content-grid">

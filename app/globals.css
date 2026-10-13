@@ -1,5 +1,51 @@
 @import "tailwindcss";
 
+.dashboard-work { margin-top: 28px; }
+.dashboard-work-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.dashboard-work-heading h2 { margin: 7px 0 0; font-size: clamp(21px, 2vw, 27px); font-weight: 650; letter-spacing: -.035em; }
+.dashboard-work-date { color: #666860; font-size: 13px; }
+.dashboard-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); background: #fff; }
+.dashboard-metrics > div { min-width: 0; padding: 15px 18px; border-right: 1px solid var(--line); }
+.dashboard-metrics > div:last-child { border-right: 0; }
+.dashboard-metrics span { display: block; color: #565850; font-size: 13px; }
+.dashboard-metrics strong { display: block; margin-top: 4px; font-size: 27px; font-weight: 650; letter-spacing: -.04em; }
+.dashboard-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.dashboard-actions a, .dashboard-actions button { display: grid; width: 100%; gap: 3px; min-height: 77px; align-content: center; border: 1px solid #c7c8c0; background: #fff; padding: 13px 16px; text-align: left; cursor: pointer; }
+.dashboard-actions a:hover, .dashboard-actions a:focus-visible, .dashboard-actions button:hover, .dashboard-actions button:focus-visible { border-color: #262720; background: #fffef1; }
+.dashboard-actions strong { font-size: 15px; }
+.dashboard-actions span { color: #5e6057; font-size: 12px; }
+
+.backup-page { min-height: 100vh; background: #f4f3ef; padding: 32px 18px 70px; }
+.backup-wrap { width: min(100%, 980px); margin: 0 auto; }
+.backup-back { display: inline-flex; align-items: center; min-height: 44px; color: #34362f; font-size: 14px; font-weight: 650; }
+.backup-kicker { margin-top: 33px; color: #55574f; font-family: var(--font-mono), monospace; font-size: 11px; letter-spacing: .13em; }
+.backup-page h1 { margin: 6px 0 10px; font-size: clamp(32px, 4vw, 48px); letter-spacing: -.05em; line-height: 1.05; }
+.backup-intro { max-width: 68ch; margin: 0 0 25px; color: #55574f; font-size: 16px; line-height: 1.55; }
+.backup-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.backup-card { border: 1px solid #c6c8be; background: #fff; padding: 26px; }
+.backup-step { color: #62645b; font-family: var(--font-mono), monospace; font-size: 11px; letter-spacing: .1em; }
+.backup-card h2 { margin: 12px 0 7px; font-size: 24px; letter-spacing: -.03em; }
+.backup-card p { min-height: 72px; margin: 0 0 20px; color: #55574f; font-size: 14px; line-height: 1.5; }
+.backup-card form { display: grid; gap: 9px; }
+.backup-card label { margin-top: 8px; color: #35372f; font-size: 13px; font-weight: 650; }
+.backup-card input { width: 100%; min-height: 48px; border: 1px solid #979990; border-radius: 2px; background: #fff; padding: 10px 12px; font-size: 16px; }
+.backup-card input[type="file"] { padding: 10px; font-size: 13px; }
+.backup-card button { min-height: 50px; margin-top: 13px; border: 1px solid #20211e; background: #20211e; color: #fff; padding: 0 15px; cursor: pointer; font-size: 14px; font-weight: 700; }
+.backup-card button:disabled { cursor: not-allowed; opacity: .5; }
+.backup-restore button { background: #f4e900; color: #20211e; }
+.backup-alert, .backup-success { margin: 0 0 18px; border: 1px solid #b06955; background: #fff0eb; padding: 13px 16px; color: #713c2e; font-size: 14px; }
+.backup-success { border-color: #6d9b79; background: #e9f4ec; color: #245b35; }
+
+@media (max-width: 680px) {
+  .dashboard-work-heading { align-items: start; flex-direction: column; gap: 4px; }
+  .dashboard-metrics > div { padding: 11px; }
+  .dashboard-metrics span { font-size: 11px; }
+  .dashboard-metrics strong { font-size: 23px; }
+  .dashboard-actions, .backup-grid { grid-template-columns: 1fr; }
+  .backup-card p { min-height: 0; }
+  .backup-card { padding: 21px; }
+}
+
 :root {
   --paper: #f4f3ef;
   --surface: #fff;
@@ -311,7 +357,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .entry-history-filters { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto; align-items: end; gap: 14px; padding: 18px; }
 .entry-history-filters label { display: grid; min-width: 0; gap: 7px; }
 .entry-history-filters label > span { color: #74756e; font-family: var(--font-mono), monospace; font-size: 8px; letter-spacing: .08em; }
-.entry-history-filters input[type="date"] { width: 100%; height: 42px; border: 1px solid #d4d5ce; background: #fafaf7; padding: 0 11px; color: #292a24; font-size: 11px; }
 .entry-history-filter-actions { display: flex; align-items: center; gap: 16px; }
 .entry-history-filters .entry-submit { min-width: 152px; height: 42px; }
 .entry-history-reset { padding: 0 3px; color: #686960; font-size: 10px; white-space: nowrap; }

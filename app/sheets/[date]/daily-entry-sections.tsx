@@ -20,6 +20,7 @@ import {
   setPendingWarrantyBillBackCheck,
 } from "@/app/actions/stock-sheets";
 import { formatSheetDate } from "@/lib/stock-sheet-date";
+import { formatEntryDate } from "@/lib/entry-date";
 
 type ProductOption = { id: string; name: string };
 type PartyOption = { name: string };
@@ -47,10 +48,11 @@ function Field({ label, name, type = "text", required = true, placeholder, step,
   min?: string;
   defaultValue?: string | number;
 }) {
+  const isDate = type === "entry-date";
   return (
     <label className="entry-field">
-      <span>{label}</span>
-      <input name={name} type={type} required={required} placeholder={placeholder} step={step} min={min} defaultValue={defaultValue} />
+      <span>{label}{isDate ? " · DD-MM-YY" : ""}</span>
+      <input name={name} type={isDate ? "text" : type} autoComplete={isDate ? "off" : undefined} maxLength={isDate ? 10 : undefined} required={required} placeholder={isDate ? "10-7-26" : placeholder} step={step} min={min} defaultValue={defaultValue} />
     </label>
   );
 }
@@ -268,7 +270,7 @@ export function DailyEntrySections({
                   <PartyField parties={parties} listId={`warranty-in-edit-party-${entry.id}`} defaultValue={entry.party} />
                   <ProductField products={products} defaultValue={entry.productId} />
                   <Field label="INVOICE NUMBER" name="invoiceNumber" defaultValue={entry.invoiceNumber} />
-                  <Field label="DATE OF INVOICE" name="invoiceDate" type="date" defaultValue={entry.invoiceDate.toISOString().slice(0, 10)} />
+                  <Field label="DATE OF INVOICE" name="invoiceDate" type="entry-date" defaultValue={formatEntryDate(entry.invoiceDate)} />
                   <Field label="RMA #" name="rmaNumber" defaultValue={entry.rmaNumber} />
                   <Field label="QTY." name="quantity" type="number" min="1" step="1" defaultValue={entry.quantity} />
                   <Field label="PENDING AMOUNT · PKR" name="amount" type="number" min="0" step="0.01" defaultValue={(entry.amountPaisa / 100).toFixed(2)} />
@@ -283,7 +285,7 @@ export function DailyEntrySections({
               <PartyField parties={parties} listId="warranty-in-party-options" />
               <ProductField products={products} />
               <Field label="INVOICE NUMBER" name="invoiceNumber" placeholder="Invoice no." />
-              <Field label="DATE OF INVOICE" name="invoiceDate" type="date" />
+              <Field label="DATE OF INVOICE" name="invoiceDate" type="entry-date" />
               <Field label="RMA #" name="rmaNumber" placeholder="RMA number" />
               <Field label="QTY." name="quantity" type="number" min="1" step="1" defaultValue={1} />
               <Field label="PENDING AMOUNT · PKR" name="amount" type="number" min="0" step="0.01" placeholder="0.00" />
@@ -364,15 +366,15 @@ export function DailyEntrySections({
                       <input type="hidden" name="pendingWarrantyId" value={entry.id} />
                       <ProductField products={products} defaultValue={entry.productId} />
                       <PartyField parties={parties} listId={`pending-party-options-${entry.id}`} defaultValue={entry.party} />
-                      <Field label="RECEIVED DATE" name="receivedDate" type="date" defaultValue={entry.receivedDate.toISOString().slice(0, 10)} />
+                      <Field label="RECEIVED DATE" name="receivedDate" type="entry-date" defaultValue={formatEntryDate(entry.receivedDate)} />
                       <Field label="QTY." name="quantity" type="number" min="1" step="1" defaultValue={entry.quantity} />
-                      <Field label="INVOICE DATE" name="invoiceDate" type="date" defaultValue={entry.invoiceDate.toISOString().slice(0, 10)} />
+                      <Field label="INVOICE DATE" name="invoiceDate" type="entry-date" defaultValue={formatEntryDate(entry.invoiceDate)} />
                       <Field label="RMA #" name="rmaNumber" placeholder="RMA number" defaultValue={entry.rmaNumber} />
                       <Field label="AMOUNT · PKR" name="amount" type="number" min="0" step="0.01" defaultValue={(entry.amountPaisa / 100).toFixed(2)} />
                       <button className="entry-submit" type="submit">Save changes <span>↗</span></button>
                     </form>
                   </details>
-                  <form action={deletePendingWarrantyEntry} className="pending-delete-form"><EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} /><input type="hidden" name="pendingWarrantyId" value={entry.id} /><button type="submit" aria-label={`Delete pending warranty ${entry.rmaNumber}`}>Delete</button></form>
+                  {!readOnly && <form action={deletePendingWarrantyEntry} className="pending-delete-form"><EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} /><input type="hidden" name="pendingWarrantyId" value={entry.id} /><button type="submit" aria-label={`Delete pending warranty ${entry.rmaNumber}`}>Delete</button></form>}
                 </div>
                 }
               </td>
@@ -383,9 +385,9 @@ export function DailyEntrySections({
               <EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} />
               <ProductField products={products} />
               <PartyField parties={parties} listId="pending-party-options" />
-              <Field label="RECEIVED DATE" name="receivedDate" type="date" />
+              <Field label="RECEIVED DATE" name="receivedDate" type="entry-date" />
               <Field label="QTY." name="quantity" type="number" min="1" step="1" placeholder="1" />
-              <Field label="INVOICE DATE" name="invoiceDate" type="date" />
+              <Field label="INVOICE DATE" name="invoiceDate" type="entry-date" />
               <Field label="RMA #" name="rmaNumber" placeholder="RMA number" />
               <Field label="AMOUNT · PKR" name="amount" type="number" min="0" step="0.01" placeholder="0.00" />
               <button className="entry-submit" type="submit">Save pending warranty <span>↗</span></button>

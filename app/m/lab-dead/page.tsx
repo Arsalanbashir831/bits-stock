@@ -44,7 +44,7 @@ export default async function EmployeeLabDeadPage({
       </div>
 
       {notice && <div className={`m-notice ${notice.tone}`}>{notice.text}</div>}
-      {readOnly && sheet && <div className="m-notice error">Today’s stock sheet is closed. New entries are locked.</div>}
+      {readOnly && sheet && <div className="m-notice">Today’s sheet is closed. You can edit a saved entry below, but cannot add or delete one.</div>}
       {!sheet && <div className="m-notice error">No stock sheet for today yet. Ask the office to create it first.</div>}
 
       <form className="m-card m-form" action={addLabDeadEntries}>
@@ -84,8 +84,8 @@ export default async function EmployeeLabDeadPage({
                   <div className="m-row-main"><strong>{entry.product.name}</strong><span>{formatSheetDate(entry.createdAt, { hour: "2-digit", minute: "2-digit" })}</span></div>
                   <span className="m-row-value">−{entry.quantity}</span>
                 </div>
-                {!readOnly && <details className="m-entry-edit">
-                  <summary>Edit or delete</summary>
+                {sheet && <details className="m-entry-edit">
+                  <summary>Edit entry</summary>
                   <form className="m-form m-edit-form" action={editLabDeadEntry}>
                     <input type="hidden" name="sheetDate" value={dateKey} />
                     <input type="hidden" name="returnTo" value="/m/lab-dead" />
@@ -94,12 +94,12 @@ export default async function EmployeeLabDeadPage({
                     <div className="m-field"><label htmlFor={`lab-dead-quantity-${entry.id}`}>Quantity sent as lab dead</label><input id={`lab-dead-quantity-${entry.id}`} name="quantity" type="number" min="1" step="1" required defaultValue={entry.quantity} /></div>
                     <button className="m-submit" type="submit">Save changes</button>
                   </form>
-                  <DeleteEntryForm action={deleteLabDeadEntry}>
+                  {!readOnly && <DeleteEntryForm action={deleteLabDeadEntry}>
                     <input type="hidden" name="sheetDate" value={dateKey} />
                     <input type="hidden" name="returnTo" value="/m/lab-dead" />
                     <input type="hidden" name="labDeadId" value={entry.id} />
                     <button className="m-delete-button" type="submit">Delete lab dead out</button>
-                  </DeleteEntryForm>
+                  </DeleteEntryForm>}
                 </details>}
               </div>
             ))}

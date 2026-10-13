@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { formatSheetDate } from "@/lib/stock-sheet-date";
+import { MobileNav } from "@/app/m/mobile-nav";
 import "./mobile.css";
 
 export const metadata: Metadata = {
@@ -16,15 +16,6 @@ export const viewport: Viewport = {
   themeColor: "#14150f",
 };
 
-const TABS = [
-  { href: "/m", label: "Today" },
-  { href: "/m/sale", label: "Sale" },
-  { href: "/m/warranty", label: "Warranty" },
-  { href: "/m/pending", label: "Pending" },
-  { href: "/m/billback", label: "Bill Back" },
-  { href: "/m/lab-dead", label: "Lab Dead Out" },
-];
-
 export default function EmployeePortalLayout({ children }: { children: ReactNode }) {
   return (
     <div className="m-shell">
@@ -33,11 +24,7 @@ export default function EmployeePortalLayout({ children }: { children: ReactNode
         <span className="m-topbar-date">{formatSheetDate(new Date(), { weekday: "short", day: "2-digit", month: "short" })}</span>
       </header>
       <main className="m-main">{children}</main>
-      <nav className="m-tabbar" aria-label="Employee portal sections">
-        {TABS.map((tab) => (
-          <Link key={tab.href} className="m-tab" href={tab.href}>{tab.label}</Link>
-        ))}
-      </nav>
+      <MobileNav />
     </div>
   );
 }

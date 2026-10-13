@@ -20,6 +20,8 @@ npm run dev
 
 Set `DATABASE_URL` in `.env` to your PostgreSQL connection string before running the database commands. The app also recognizes `BITSSTOCK_PRISMA_DATABASE_URL`, `BITSSTOCK_DATABASE_URL`, and `BITSSTOCK_POSTGRES_URL`. Set `DIRECT_URL` to the provider's direct connection string when available so Prisma migrations can use it. Prisma Client is generated into `lib/generated/prisma` during install. The starter catalog follows the item names in the provided BITS stock report. Check the database connection at [http://localhost:3000/api/health](http://localhost:3000/api/health).
 
+Set `BACKUP_ADMIN_PASSWORD` to a long, unique password in the server environment to enable **Backup & restore** on the dashboard. Downloading and restoring both require this password. The download is a versioned JSON file containing every application table, including IDs and dates. Import accepts a file up to 10 MB, requires the same database schema, and replaces all application records in one PostgreSQL transaction. Download a fresh backup before importing another file. The password is never stored in the backup. Migrations must be applied to the destination database before import.
+
 ## Vercel deployment
 
 1. In the Vercel project, open **Storage** or **Marketplace** and add Prisma Postgres or Neon. Connect it to this project and allow the integration to add its database environment variables.
@@ -53,10 +55,12 @@ The home page lists saved daily reports and offers a one-per-day “Create today
 
 ## Daily stock workflow
 
+Staff can type invoice and received dates as day-month-year (for example, `10-7-26` for 10 July 2026). Four-digit years also work. The app validates the calendar date before saving it.
+
 Create one report for each business day. Each report starts from the previous report's closing stock, pending-warranty balance, and faulty-for-lab balance. Reports retain a dated snapshot for history.
 
 - Purchases increase closing stock. Invoice quantities and Warranty OUT replacement units reduce it.
-- Warranty IN entries count as one unit each. A `100% OK` drive increases stock in hand. `Add to Faulty For Lab` increases the separate faulty-for-lab balance. Each Warranty IN claim enters Pending Warranty unless it is replaced on the same day.
+- Warranty IN entries have a quantity. `100% OK` drives increase stock in hand. `Add to Faulty For Lab` increases the separate faulty-for-lab balance. Each Warranty IN claim enters Pending Warranty unless it is replaced on the same day.
 - Warranty OUT selects an open pending claim by its claim RMA number and resolves it. Its RMA slip is recorded separately.
 - Lab Dead quantities reduce Faulty For Lab. The form prevents entering more units than are currently in that balance.
 - Pending Warranty remains independent from Faulty For Lab. Bill Back Check removes a claim from Pending Warranty only, and Today Bill Back is calculated from the amounts checked for that day.
@@ -64,7 +68,7 @@ Create one report for each business day. Each report starts from the previous re
 
 The downloadable PDF is a two-page A4 portrait report. Page one contains the stock sheet; page two contains the daily invoice, warranty, and pending-warranty registers, including Drive Status and Bill Back Check.
 
-When adding write operations, create the source record and its stock movements in the same Prisma transaction. Avoid editing or deleting historical movements; use a correcting movement instead.
+Today’s saved entries can be edited from the employee portal even after today’s sheet is closed. The main stock sheet also permits edits for the previous stock day; Sunday is skipped. Deletion is available while the relevant sheet remains open.
 
 ## Database commands
 

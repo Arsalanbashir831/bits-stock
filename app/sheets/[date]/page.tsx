@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatSheetDate, getBusinessDateKey, getPreviousBusinessDateKey, isTodayOrYesterday, toSheetDate } from "@/lib/stock-sheet-date";
+import { formatSheetDate, getBusinessDateKey, getPreviousBusinessDateKey, isTodayOrPreviousStockDay, toSheetDate } from "@/lib/stock-sheet-date";
 import { comparePartyNames, sortPartyEntries } from "@/lib/party-sort";
 import { DailyEntrySections } from "./daily-entry-sections";
 import { CloseStockSheet } from "../close-stock-sheet";
@@ -109,7 +109,7 @@ export default async function StockSheetPage({
     fields.map(([key]) => [key, lines.reduce((sum, line) => sum + line[key], 0)]),
   ) as Record<FieldKey, number>;
   const showClosing = stockSheet.status === "CLOSED" || stockSheet.closingPreparedAt !== null;
-  const editOnly = stockSheet.status === "CLOSED" && isTodayOrYesterday(date);
+  const editOnly = stockSheet.status === "CLOSED" && isTodayOrPreviousStockDay(date);
   const totalSalesPaisa = stockSheet.invoices.reduce(
     (sum, entry) => sum + entry.quantity * entry.pricePaisa,
     0,
@@ -132,7 +132,7 @@ export default async function StockSheetPage({
           <a className="download-sheet-button" href={`/api/sheets/${date}/pdf`}>
             <span aria-hidden="true">↓</span> Download stock sheet PDF
           </a>
-          {yesterdaySheet && <Link className="download-sheet-button" href={`/sheets/${previousDateKey}`}>Edit yesterday’s entries <span aria-hidden="true">↗</span></Link>}
+          {yesterdaySheet && <Link className="download-sheet-button" href={`/sheets/${previousDateKey}`}>Edit previous stock sheet · {formatSheetDate(yesterdaySheet.sheetDate, { day: "2-digit", month: "short" })} <span aria-hidden="true">↗</span></Link>}
           <CloseStockSheet dateKey={date} status={stockSheet.status} closedAt={stockSheet.closedAt} closingPreparedAt={stockSheet.closingPreparedAt} />
           <div className="report-date-stamp"><span>DATED</span><strong>{formatSheetDate(stockSheet.sheetDate, { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</strong></div>
         </div>
@@ -182,7 +182,7 @@ export default async function StockSheetPage({
           </div>
         <footer className="report-card-footer"><span>ONE RECORD PER BUSINESS DAY</span><span>ARCHIVED AFTER DAILY CLOSE</span></footer>
       </section>
-      {query.error && <div className="notice error-notice report-error">{query.error === "closed" ? "This stock sheet is closed. Its entries are read-only." : query.error === "prepare-close" ? "Prepare the closing quantities before confirming the close." : "Some details are missing or invalid. Review the entry and try again."}</div>}
+      {query.error && <div className="notice error-notice report-error">{query.error === "entry-date" ? "Enter dates as day-month-year, for example 10-7-26 (10 July 2026)." : query.error === "closed" ? "This stock sheet is closed. Its entries are read-only." : query.error === "prepare-close" ? "Prepare the closing quantities before confirming the close." : "Some details are missing or invalid. Review the entry and try again."}</div>}
       {query.closed && <div className="notice success-notice report-error">Stock sheet closed and added to daily history.</div>}
       {query.prepared && <div className="notice success-notice report-error">Closing quantities calculated. Review CLSG QTY, then confirm closing.</div>}
       <DailyEntrySections
