@@ -9,7 +9,7 @@ import { parseEntryDate } from "@/lib/entry-date";
 import { recalculateBillBackTotal, recalculateDeadOutQuantity, recalculateProduct, recalculateSheetClosing } from "@/lib/server/stock-balances";
 import { getBusinessDateKey, isTodayOrPreviousStockDay, toSheetDate } from "@/lib/stock-sheet-date";
 
-const PORTAL_PAGES = new Set(["/m", "/m/sale", "/m/warranty", "/m/warranty/out", "/m/pending", "/m/billback", "/m/lab-dead"]);
+const PORTAL_PAGES = new Set(["/m", "/m/sale", "/m/warranty", "/m/warranty/out", "/m/pending", "/m/billback", "/m/lab-dead", "/m/purchase"]);
 
 function portalReturnPath(formData: FormData) {
   const returnTo = String(formData.get("returnTo") ?? "");

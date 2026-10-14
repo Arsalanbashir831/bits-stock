@@ -45,6 +45,7 @@ export default async function EmployeeTodayPage({
             <Link className="m-button" href="/m/sale"><span>Record a sale</span><small>1 →</small></Link>
             <Link className="m-button" href="/m/warranty"><span>Receive warranty item</span><small>2 →</small></Link>
             <Link className="m-button m-secondary" href="/m/warranty/out"><span>Give replacement</span><small>3 →</small></Link>
+            <Link className="m-button m-secondary" href="/m/purchase"><span>Record a purchase</span><small>4 →</small></Link>
             <Link className="m-button m-secondary" href="/m/more"><span>Other work</span><small>→</small></Link>
           </div>
           <div className="m-stats">
