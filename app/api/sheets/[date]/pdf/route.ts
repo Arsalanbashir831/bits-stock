@@ -37,18 +37,18 @@ function pageCanvas() {
     line(x1: number, top1: number, x2: number, top2: number) {
       commands.push(`${x1.toFixed(2)} ${y(top1).toFixed(2)} m ${x2.toFixed(2)} ${y(top2).toFixed(2)} l S`);
     },
-    text(value: unknown, x: number, top: number, size = 6, bold = false, align: "left" | "center" | "right" = "left") {
+    text(value: unknown, x: number, top: number, size = 6, bold = false, align: "left" | "center" | "right" = "left", color = "0 0 0") {
       const str = pdfText(value);
       const approxWidth = str.length * size * (bold ? 0.54 : 0.5);
       const left = align === "center" ? x - approxWidth / 2 : align === "right" ? x - approxWidth : x;
-      commands.push(`BT /${bold ? "F2" : "F1"} ${size.toFixed(2)} Tf 1 0 0 1 ${left.toFixed(2)} ${(PAGE_H - top - size).toFixed(2)} Tm (${str}) Tj ET`);
+      commands.push(`${color} rg BT /${bold ? "F2" : "F1"} ${size.toFixed(2)} Tf 1 0 0 1 ${left.toFixed(2)} ${(PAGE_H - top - size).toFixed(2)} Tm (${str}) Tj ET 0 0 0 rg`);
     },
   };
 }
 
 type Canvas = ReturnType<typeof pageCanvas>;
 
-function drawCell(canvas: Canvas, x: number, top: number, width: number, height: number, value: unknown, options: { fill?: string; bold?: boolean; size?: number; align?: "left" | "center" | "right" } = {}) {
+function drawCell(canvas: Canvas, x: number, top: number, width: number, height: number, value: unknown, options: { fill?: string; bold?: boolean; size?: number; align?: "left" | "center" | "right"; color?: string } = {}) {
   if (options.fill) canvas.rect(x, top, width, height, options.fill);
   else canvas.rect(x, top, width, height);
   const left = options.align === "center" ? x + width / 2 : options.align === "right" ? x + width - 3 : x + 3;
@@ -56,7 +56,7 @@ function drawCell(canvas: Canvas, x: number, top: number, width: number, height:
   const size = options.size ?? 5;
   const lineHeight = size * 1.05;
   const firstTop = top + Math.max(1, (height - lines.length * lineHeight) / 2);
-  lines.forEach((line, index) => canvas.text(line, left, firstTop + index * lineHeight, size, options.bold ?? false, options.align ?? "left"));
+  lines.forEach((line, index) => canvas.text(line, left, firstTop + index * lineHeight, size, options.bold ?? false, options.align ?? "left", options.color));
 }
 
 function drawStockSheet(sheet: {
@@ -116,12 +116,13 @@ function drawStockSheet(sheet: {
     const groupTotals = Object.fromEntries(fields.map((field) => [field, 0])) as typeof totals;
     for (const row of group.rows) {
       let rx = x;
-      drawCell(canvas, rx, top, cols[0], 15 * scale, row.itemName, { size: 6.2 * scale });
+      drawCell(canvas, rx, top, cols[0], 15 * scale, row.itemName, { size: 8 * scale, bold: true });
       rx += cols[0];
       fields.forEach((field, index) => {
         groupTotals[field] += row[field];
         totals[field] += row[field];
-        drawCell(canvas, rx, top, cols[index + 1], 15 * scale, (!showClosing && index < 3) ? "" : row[field] || "", { size: 5.5 * scale, align: "center" });
+        const color = index === 0 ? "0.77 0.42 0.09" : index === 1 || index === 4 ? "0.16 0.38 0.65" : index >= 7 ? "0.70 0.23 0.21" : index >= 5 ? "0.15 0.44 0.27" : "0.08 0.09 0.07";
+        drawCell(canvas, rx, top, cols[index + 1], 15 * scale, (!showClosing && index < 3) ? "" : row[field] || "", { size: 7.5 * scale, bold: true, align: "center", color });
         rx += cols[index + 1];
       });
       top += 15 * scale;

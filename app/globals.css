@@ -276,8 +276,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .section-label-row th { height: 25px; border-color: #c8c9c2; background: #f0f0eb; padding: 0 10px; color: #65665f; font-family: var(--font-mono), monospace; font-size: 8px; font-weight: 570; letter-spacing: .09em; text-align: left; text-transform: uppercase; }
 .section-label-row span { float: right; color: #92938c; font-size: 7px; }
 .product-row { height: 31px; }
-.product-row th { position: sticky; left: 0; z-index: 1; background: #fff; padding: 0 10px; font-size: 10px; font-weight: 510; text-align: left; white-space: nowrap; }
-.product-row td { padding: 0 5px; font-family: var(--font-mono), monospace; font-size: 9px; text-align: center; }
+.product-row th { position: sticky; left: 0; z-index: 1; background: #fff; padding: 0 10px; font-size: 12px; font-weight: 650; text-align: left; white-space: nowrap; }
+.product-row td { padding: 0 5px; font-family: var(--font-mono), monospace; font-size: 11px; font-weight: 650; text-align: center; }
+.product-row td:nth-child(7), .product-row td:nth-child(8) { color: #267044; }
+.product-row td:nth-child(n+9) { color: #b33b35; }
+.product-row td:nth-child(-n+6) { color: #151611; }
+.product-row td:nth-child(2) { color: #c46a16; }
+.product-row td:nth-child(3), .product-row td:nth-child(6) { color: #2862a6; }
 .product-row:hover th, .product-row:hover td { background: #fffef2; }
 .section-total-row { height: 33px; background: #fff86a; }
 .section-total-row th { padding: 0 10px; font-size: 9px; font-weight: 720; text-align: left; }
@@ -657,8 +662,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .section-label-row th { height: 10px; padding: 0 4px; font-size: 4pt; letter-spacing: 0; }
   .section-label-row span { font-size: 3.5pt; }
   .product-row { height: 12px; }
-  .product-row th { position: static; padding-right: 2px; padding-left: 4px; font-size: 4.5pt; }
-  .product-row td { padding-right: 1px; padding-left: 1px; font-size: 4pt; }
+  .product-row th { position: static; padding-right: 2px; padding-left: 4px; font-size: 8pt; font-weight: 700; }
+  .product-row td { padding-right: 1px; padding-left: 1px; font-size: 7.5pt; font-weight: 700; }
   .section-total-row { height: 12px; }
   .section-total-row th, .section-total-row td { font-size: 4pt; }
   .grand-total-row { height: 14px; }
