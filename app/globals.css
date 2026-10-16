@@ -693,16 +693,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .pdf-invoices th:nth-child(2) { width: 38%; }
   .pdf-invoices th:nth-child(3) { width: 12%; }
   .pdf-invoices th:nth-child(4) { width: 22%; }
-  .pdf-warranty-out th:nth-child(1), .pdf-warranty-out td:nth-child(1) { width: 34%; }
-  .pdf-warranty-out th:nth-child(2), .pdf-warranty-out td:nth-child(2) { width: 30%; }
-  .pdf-warranty-out th:nth-child(3), .pdf-warranty-out td:nth-child(3) { width: 36%; }
+  .pdf-warranty-out th:nth-child(1), .pdf-warranty-out td:nth-child(1) { width: 24%; }
+  .pdf-warranty-out th:nth-child(2), .pdf-warranty-out td:nth-child(2) { width: 23%; }
+  .pdf-warranty-out th:nth-child(3), .pdf-warranty-out td:nth-child(3) { width: 10%; }
+  .pdf-warranty-out th:nth-child(4), .pdf-warranty-out td:nth-child(4) { width: 20%; }
+  .pdf-warranty-out th:nth-child(5), .pdf-warranty-out td:nth-child(5) { width: 23%; }
   .pdf-warranty-in th, .pdf-warranty-in td { height: 14px; font-size: 4.5pt; }
-  .pdf-warranty-in th:nth-child(1) { width: 17%; }
-  .pdf-warranty-in th:nth-child(2) { width: 19%; }
-  .pdf-warranty-in th:nth-child(3) { width: 15%; }
-  .pdf-warranty-in th:nth-child(4) { width: 16%; }
-  .pdf-warranty-in th:nth-child(5) { width: 13%; }
-  .pdf-warranty-in th:nth-child(6) { width: 20%; }
+  .pdf-warranty-in th:nth-child(1) { width: 13%; }
+  .pdf-warranty-in th:nth-child(2) { width: 15%; }
+  .pdf-warranty-in th:nth-child(3) { width: 8%; }
+  .pdf-warranty-in th:nth-child(4) { width: 11%; }
+  .pdf-warranty-in th:nth-child(5) { width: 12%; }
+  .pdf-warranty-in th:nth-child(6) { width: 10%; }
+  .pdf-warranty-in th:nth-child(7) { width: 15%; }
+  .pdf-warranty-in th:nth-child(8) { width: 16%; }
   .pdf-totals-table th { width: 56%; background: #f3f3f0; font-size: 4.5pt; }
   .pdf-totals-table td { font-size: 5pt; }
   .pdf-pending th, .pdf-pending td { height: 13px; font-size: 4.8pt; }

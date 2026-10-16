@@ -26,7 +26,7 @@ type ProductOption = { id: string; name: string };
 type PartyOption = { name: string };
 type InvoiceRow = { id: string; productId: string; invoiceNumber: string; itemName: string; quantity: number; pricePaisa: number };
 type WarrantyInRow = { id: string; productId: string; party: string; itemName: string; invoiceNumber: string; invoiceDate: Date; rmaNumber: string; driveStatus: string; quantity: number; amountPaisa: number };
-type WarrantyOutRow = { id: string; party: string; itemName: string; rmaSlipNumber: string; pendingWarrantyEntryId: string | null; pendingWarrantyEntry: { rmaNumber: string } | null };
+type WarrantyOutRow = { id: string; party: string; itemName: string; rmaSlipNumber: string; pendingWarrantyEntryId: string | null; pendingWarrantyEntry: { rmaNumber: string; quantity?: number } | null };
 type PendingWarrantyRow = { id: string; productId: string; itemName: string; party: string; receivedDate: Date; quantity: number; invoiceDate: Date; rmaNumber: string; amountPaisa: number; billBackChecked: boolean };
 type QuantityEntry = { id: string; productId: string; quantity: number; product: { name: string } };
 type PurchaseRow = { id: string; productId: string; quantity: number; party: string; product: { name: string } };
@@ -302,9 +302,9 @@ export function DailyEntrySections({
           <span className="entry-section-date">{formatSheetDate(new Date(`${dateKey}T00:00:00.000Z`), dateOptions)}</span>
         </div>
         <div className="entry-table-card">
-          <div className="entry-table-scroll"><table className="entry-table"><thead><tr><th>PARTY</th><th>ITEM</th><th>CLAIM RMA #</th><th>RMA SLIP #</th><th>DATE</th><th>ACTIONS</th></tr></thead><tbody>
+          <div className="entry-table-scroll"><table className="entry-table"><thead><tr><th>PARTY</th><th>ITEM</th><th>QTY.</th><th>CLAIM RMA #</th><th>RMA SLIP #</th><th>DATE</th><th>ACTIONS</th></tr></thead><tbody>
             {warrantyOuts.length ? warrantyOuts.map((entry) => <tr key={entry.id}>
-              <td data-label="Party">{entry.party}</td><td data-label="Item">{entry.itemName}</td><td data-label="Claim RMA" className="entry-ref">{entry.pendingWarrantyEntry?.rmaNumber ?? ""}</td><td data-label="RMA slip" className="entry-ref">{entry.rmaSlipNumber}</td><td data-label="Date">{formatSheetDate(new Date(`${dateKey}T00:00:00.000Z`), dateOptions)}</td>
+              <td data-label="Party">{entry.party}</td><td data-label="Item">{entry.itemName}</td><td data-label="Quantity">{entry.pendingWarrantyEntry?.quantity ?? 1}</td><td data-label="Claim RMA" className="entry-ref">{entry.pendingWarrantyEntry?.rmaNumber ?? ""}</td><td data-label="RMA slip" className="entry-ref">{entry.rmaSlipNumber}</td><td data-label="Date">{formatSheetDate(new Date(`${dateKey}T00:00:00.000Z`), dateOptions)}</td>
               <RowActions readOnly={readOnly} editOnly={editOnly} dateKey={dateKey} returnToEntries={returnToEntries} deleteAction={deleteWarrantyOutEntry} idName="warrantyOutId" id={entry.id} label={`warranty out slip ${entry.rmaSlipNumber}`}
                 editForm={<form className="pending-edit-form" action={editWarrantyOutEntry}>
                   <EntryFormContext dateKey={dateKey} returnToEntries={returnToEntries} />
@@ -313,7 +313,7 @@ export function DailyEntrySections({
                   <Field label="RMA SLIP #" name="rmaSlipNumber" defaultValue={entry.rmaSlipNumber} />
                   <button className="entry-submit" type="submit">Save changes <span>↗</span></button>
                 </form>} />
-            </tr>) : <TableEmpty columns={6}>No warranty items sent out today.</TableEmpty>}
+            </tr>) : <TableEmpty columns={7}>No warranty items sent out today.</TableEmpty>}
           </tbody></table></div>
           <AddEntry title="Add warranty out entry" readOnly={readOnly}>
             <form className="entry-form" action={addWarrantyOutEntry}>

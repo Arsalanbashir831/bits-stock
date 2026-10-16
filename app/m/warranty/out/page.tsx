@@ -20,7 +20,7 @@ export default async function EmployeeWarrantyOutPage({
   const [sheet, pendingClaims] = await Promise.all([
     prisma.stockSheet.findUnique({
       where: { sheetDate: today },
-      include: { warrantyOuts: { orderBy: { createdAt: "desc" }, include: { pendingWarrantyEntry: { select: { id: true, rmaNumber: true } } } } },
+      include: { warrantyOuts: { orderBy: { createdAt: "desc" }, include: { pendingWarrantyEntry: { select: { id: true, rmaNumber: true, quantity: true } } } } },
     }),
     prisma.pendingWarrantyEntry.findMany({
       where: {
@@ -72,7 +72,7 @@ export default async function EmployeeWarrantyOutPage({
                 <div className="m-row">
                   <div className="m-row-main">
                     <strong>{entry.party}</strong>
-                    <span>{entry.itemName} · slip {entry.rmaSlipNumber} · RMA {entry.pendingWarrantyEntry?.rmaNumber ?? "—"}</span>
+                    <span>{entry.itemName} · Qty {entry.pendingWarrantyEntry?.quantity ?? 1} · slip {entry.rmaSlipNumber} · RMA {entry.pendingWarrantyEntry?.rmaNumber ?? "—"}</span>
                   </div>
                 </div>
                 {sheet && <details className="m-entry-edit">

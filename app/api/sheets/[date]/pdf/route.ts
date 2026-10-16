@@ -173,8 +173,8 @@ function drawGrid(canvas: Canvas, x: number, top: number, width: number, headers
 function drawDailyEntries(sheet: {
   sheetDate: Date;
   invoices: Array<{ invoiceNumber: string; itemName: string; quantity: number; pricePaisa: number }>;
-  warrantyIns: Array<{ party: string; itemName: string; invoiceNumber: string; invoiceDate: Date; rmaNumber: string; driveStatus: string; amountPaisa: number }>;
-  warrantyOuts: Array<{ party: string; itemName: string; rmaSlipNumber: string; pendingWarrantyEntry: { rmaNumber: string } | null }>;
+  warrantyIns: Array<{ party: string; itemName: string; invoiceNumber: string; invoiceDate: Date; rmaNumber: string; driveStatus: string; quantity: number; amountPaisa: number }>;
+  warrantyOuts: Array<{ party: string; itemName: string; rmaSlipNumber: string; pendingWarrantyEntry: { rmaNumber: string; quantity: number } | null }>;
   pendingWarranties: Array<{ itemName: string; party: string; receivedDate: Date; quantity: number; invoiceDate: Date; rmaNumber: string; amountPaisa: number; billBackChecked: boolean }>;
   billBackPaisa: number;
   deadOutQuantity: number;
@@ -188,14 +188,14 @@ function drawDailyEntries(sheet: {
 
   const half = (fullWidth - gap) / 2;
   const invoiceRows = sheet.invoices.map((row) => [row.invoiceNumber, row.itemName, row.quantity, money(row.pricePaisa)]);
-  const warrantyOutRows = sheet.warrantyOuts.map((row) => [row.party, row.itemName, row.pendingWarrantyEntry?.rmaNumber ?? "", row.rmaSlipNumber]);
+  const warrantyOutRows = sheet.warrantyOuts.map((row) => [row.party, row.itemName, row.pendingWarrantyEntry?.quantity ?? 1, row.pendingWarrantyEntry?.rmaNumber ?? "", row.rmaSlipNumber]);
   const topAfterInvoices = drawGrid(canvas, MARGIN, 35, half, ["INVOICE #", "ITEM SOLD", "QTY", "PRICE"], invoiceRows, 11, [28, 38, 12, 22], "INVOICES", 14, 5.4);
-  const topAfterOuts = drawGrid(canvas, MARGIN + half + gap, 35, half, ["PARTY", "ITEM", "CLAIM RMA #", "RMA SLIP #"], warrantyOutRows, 11, [25, 25, 22, 28], "WARRANTY OUT", 14, 5.2);
+  const topAfterOuts = drawGrid(canvas, MARGIN + half + gap, 35, half, ["PARTY", "ITEM", "QTY", "CLAIM RMA #", "RMA SLIP #"], warrantyOutRows, 11, [24, 23, 10, 20, 23], "WARRANTY OUT", 14, 5.2);
   const middleTop = Math.max(topAfterInvoices, topAfterOuts) + 9;
   const warrantyWidth = fullWidth * 0.72;
   const totalsWidth = fullWidth - warrantyWidth;
-  const warrantyInRows = sheet.warrantyIns.map((row) => [row.party, row.itemName, row.invoiceNumber, dateLabel(row.invoiceDate), row.rmaNumber, row.driveStatus === "OK" ? "100% OK" : "FAULTY FOR LAB", money(row.amountPaisa)]);
-  const warrantyEnd = drawGrid(canvas, MARGIN, middleTop, warrantyWidth, ["PARTY", "ITEM", "INV #", "DATE", "RMA #", "DRIVE STATUS", "AMOUNT"], warrantyInRows, 8, [14, 16, 12, 13, 10, 17, 18], "WARRANTY IN", 14, 4.3);
+  const warrantyInRows = sheet.warrantyIns.map((row) => [row.party, row.itemName, row.quantity, row.invoiceNumber, dateLabel(row.invoiceDate), row.rmaNumber, row.driveStatus === "OK" ? "100% OK" : "FAULTY FOR LAB", money(row.amountPaisa)]);
+  const warrantyEnd = drawGrid(canvas, MARGIN, middleTop, warrantyWidth, ["PARTY", "ITEM", "QTY", "INV #", "DATE", "RMA #", "DRIVE STATUS", "AMOUNT"], warrantyInRows, 8, [13, 15, 8, 11, 12, 10, 15, 16], "WARRANTY IN", 14, 4.3);
   const summaryRows = [
     ["TODAY BILL BACK", money(sheet.billBackPaisa)],
     ["TODAY DEAD OUT", sheet.deadOutQuantity || ""],
@@ -327,7 +327,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ dat
       lines: { include: { product: { select: { sortOrder: true } } } },
       invoices: { orderBy: { createdAt: "asc" } },
       warrantyIns: { orderBy: { createdAt: "asc" } },
-      warrantyOuts: { orderBy: { createdAt: "asc" }, include: { pendingWarrantyEntry: { select: { rmaNumber: true } } } },
+      warrantyOuts: { orderBy: { createdAt: "asc" }, include: { pendingWarrantyEntry: { select: { rmaNumber: true, quantity: true } } } },
       purchases: { orderBy: { createdAt: "asc" }, include: { product: { select: { name: true } } } },
       labDeadEntries: { orderBy: { createdAt: "asc" }, include: { product: { select: { name: true } } } },
     },

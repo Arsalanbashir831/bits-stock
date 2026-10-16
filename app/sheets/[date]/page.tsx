@@ -66,7 +66,7 @@ export default async function StockSheetPage({
       },
       invoices: { orderBy: { createdAt: "desc" } },
       warrantyIns: { orderBy: { createdAt: "desc" } },
-      warrantyOuts: { orderBy: { createdAt: "desc" }, include: { pendingWarrantyEntry: { select: { rmaNumber: true } } } },
+      warrantyOuts: { orderBy: { createdAt: "desc" }, include: { pendingWarrantyEntry: { select: { rmaNumber: true, quantity: true } } } },
       purchases: { orderBy: { createdAt: "desc" }, include: { product: { select: { name: true } } } },
       labDeadEntries: { orderBy: { createdAt: "desc" }, include: { product: { select: { name: true } } } },
     },
